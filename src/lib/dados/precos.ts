@@ -1,19 +1,10 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Combustivel } from '@/lib/calculo';
-import type { LocaisApi, MunicipioApi, PrecoCombustivelApi, PrecosApi, Semana } from '@/lib/tipos-api';
+import { paraPreco, type LinhaPreco } from '@/lib/linha-preco';
+import type { LocaisApi, MunicipioApi, PrecosApi, Semana } from '@/lib/tipos-api';
 import { SIGLAS_UF, UFS, type Uf } from '@/lib/ufs';
 
-type LinhaPreco = {
-	produto: Combustivel;
-	preco_medio: number | string;
-	preco_min: number | string | null;
-	preco_max: number | string | null;
-};
-
 const TAMANHO_PAGINA = 1000;
-
-const numeroOuNulo = (v: number | string | null) => (v === null ? null : Number(v));
 
 export async function semanaMaisRecente(supabase: SupabaseClient): Promise<Semana | null> {
 	const { data, error } = await supabase
@@ -55,15 +46,6 @@ export async function listarLocais(supabase: SupabaseClient): Promise<LocaisApi>
 			nome: UFS[sigla],
 			municipios: [...porUf.get(sigla)!.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
 		})).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
-	};
-}
-
-function paraPreco(linha: LinhaPreco, fonte: PrecoCombustivelApi['fonte']): PrecoCombustivelApi {
-	return {
-		precoMedio: Number(linha.preco_medio),
-		precoMin: numeroOuNulo(linha.preco_min),
-		precoMax: numeroOuNulo(linha.preco_max),
-		fonte,
 	};
 }
 
