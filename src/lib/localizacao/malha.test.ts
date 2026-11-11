@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emLotes, ehQualidadeMalha, montarMunicipios, urlMalhaMunicipal, type ColecaoMalha, type FeicaoMalha, type MunicipioLocalidade } from './malha';
+import { ehQualidadeMalha, montarMunicipios, urlMalhaMunicipal, type ColecaoMalha, type FeicaoMalha, type MunicipioLocalidade } from './malha';
 
 const quadrado = {
 	type: 'Polygon' as const,
@@ -83,16 +83,5 @@ describe('montarMunicipios', () => {
 
 	it('falha quando a resposta não é um FeatureCollection', () => {
 		expect(() => montarMunicipios({ type: 'Feature' } as never, localidades)).toThrow(/FeatureCollection/);
-	});
-});
-
-describe('emLotes', () => {
-	it('divide a lista em lotes do tamanho pedido', () => {
-		expect(emLotes([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
-		expect(emLotes([], 3)).toEqual([]);
-	});
-
-	it('recusa tamanho inválido', () => {
-		expect(() => emLotes([1], 0)).toThrow();
 	});
 });
