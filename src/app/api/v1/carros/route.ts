@@ -6,9 +6,9 @@ import { carroCriarSchema } from '@/lib/esquemas';
 const naoAutenticado = () => erro(401, 'nao_autenticado', 'Entre na sua conta para acessar seus carros.');
 
 export async function GET(request: Request) {
-	const auth = await autenticar(request);
-	if (!auth) return naoAutenticado();
 	try {
+		const auth = await autenticar(request);
+		if (!auth) return naoAutenticado();
 		return Response.json({ itens: await listarCarros(auth.supabase) });
 	} catch (e) {
 		return erroInterno(e);
@@ -16,11 +16,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-	const auth = await autenticar(request);
-	if (!auth) return naoAutenticado();
-	const entrada = carroCriarSchema.safeParse(await lerJson(request));
-	if (!entrada.success) return erroValidacao(entrada.error);
 	try {
+		const auth = await autenticar(request);
+		if (!auth) return naoAutenticado();
+		const entrada = carroCriarSchema.safeParse(await lerJson(request));
+		if (!entrada.success) return erroValidacao(entrada.error);
 		return Response.json(await criarCarro(auth.supabase, entrada.data), { status: 201 });
 	} catch (e) {
 		return erroInterno(e);

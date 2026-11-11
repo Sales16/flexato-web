@@ -15,8 +15,8 @@ function autorizado(request: Request): boolean {
 }
 
 export async function GET(request: NextRequest) {
-	if (!autorizado(request)) return erro(401, 'nao_autorizado', 'Token do job inválido.');
 	try {
+		if (!autorizado(request)) return erro(401, 'nao_autorizado', 'Token do job inválido.');
 		const resultado = await importarPrecosAnp(clienteAdmin(), { forcar: request.nextUrl.searchParams.get('forcar') === '1' });
 		return Response.json(resultado);
 	} catch (e) {
