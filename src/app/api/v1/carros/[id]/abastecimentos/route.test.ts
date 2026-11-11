@@ -71,10 +71,17 @@ describe('GET /api/v1/carros/{id}/abastecimentos', () => {
 	});
 
 	it('retorna 404 quando o carro não é visível para o usuário (RLS)', async () => {
-		preparar(() => ({ data: null, error: null }));
+		preparar(c => (c.tabela === 'carros' ? { data: null, error: null } : { data: [], error: null }));
 		const resposta = await GET(requisicao('GET'), ctx());
 		expect(resposta.status).toBe(404);
 		expect((await resposta.json()).erro.codigo).toBe('carro_nao_encontrado');
+	});
+
+	it('retorna 404 sem expor abastecimentos quando o carro não é do usuário, mesmo se a lista vier preenchida', async () => {
+		preparar(c => (c.tabela === 'carros' ? { data: null, error: null } : { data: [linha({ id: 'a1' })], error: null }));
+		const resposta = await GET(requisicao('GET'), ctx());
+		expect(resposta.status).toBe(404);
+		expect(JSON.stringify(await resposta.json())).not.toContain('a1');
 	});
 
 	it('lista os abastecimentos do carro e calcula o consumo real', async () => {
