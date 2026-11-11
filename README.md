@@ -48,8 +48,10 @@ O combustível com o menor `custo_km` vence. A ponderação é feita sobre o cus
 O método é o de tanque cheio a tanque cheio, separado por combustível:
 
 - Cada abastecimento com tanque cheio fecha um intervalo e abre o próximo. O consumo do intervalo é `km rodados entre os dois enchimentos ÷ litros abastecidos desde o anterior` (somando os parciais do meio).
-- O primeiro tanque cheio só abre a medição. Parciais antes dele são ignorados.
-- O intervalo é descartado quando o hodômetro volta ou não avança, quando há litros zerados, quando há troca de combustível no meio (o tanque tinha mistura) ou quando o resultado fica fora de 2 a 40 km/l, sinal de abastecimento não registrado ou hodômetro digitado errado.
+- O primeiro tanque cheio só abre a medição. Os litros dos parciais antes dele não entram na conta.
+- O combustível medido é o que estava no tanque na abertura, não o do abastecimento que fecha: os litros do fechamento só repõem o que foi queimado. Por isso o intervalo só vale quando o tanque estava puro na abertura e todos os parciais do meio são do mesmo combustível.
+- O tanque fica puro depois de um tanque cheio quando o abastecimento que o abriu e os parciais desde então são todos do mesmo combustível do novo enchimento. Na prática, depois de uma troca de etanol para gasolina (ou o contrário), o primeiro intervalo é descartado e a medição volta no seguinte. O primeiro tanque cheio sem histórico é considerado puro. O que sobrou de antes do enchimento anterior é desprezado, porque já foi diluído por dois enchimentos.
+- O intervalo é descartado quando o hodômetro volta ou não avança, quando há litros zerados, quando o tanque tinha mistura de combustíveis ou quando o resultado fica fora de 2 a 40 km/l, sinal de abastecimento não registrado ou hodômetro digitado errado. Um intervalo descartado por qualquer motivo continua contando para saber se o tanque seguinte está puro.
 - O trecho do intervalo é cidade ou estrada quando todos os abastecimentos que o fecham marcam o mesmo trecho. Só nesses casos o app sugere trocar o km/l correspondente. Os demais aparecem como "trechos misturados".
 - Com vários intervalos, o resultado é `soma dos km ÷ soma dos litros`.
 

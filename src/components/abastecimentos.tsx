@@ -14,7 +14,7 @@ const TRECHO_MEDIDO: Record<TrechoMedido, string> = { cidade: 'na cidade', estra
 const MOTIVO: Record<MotivoDescarte, string> = {
 	hodometro_inconsistente: 'hodômetro igual ou menor que o anterior',
 	litros_invalidos: 'litros zerados',
-	combustiveis_misturados: 'troca de combustível no meio',
+	combustiveis_misturados: 'tanque com mistura de etanol e gasolina',
 	consumo_implausivel: 'consumo fora de 2 a 40 km/l, talvez um abastecimento sem registro',
 };
 
@@ -257,7 +257,13 @@ function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ult
 				</div>
 				<div className="field">
 					<label htmlFor={`${prefixo}-combustivel`}>Combustível</label>
-					<select id={`${prefixo}-combustivel`} name="combustivel" className="entrada" defaultValue={ultimo?.combustivel ?? 'etanol'}>
+					<select
+						key={ultimo?.id ?? 'sem-registro'}
+						id={`${prefixo}-combustivel`}
+						name="combustivel"
+						className="entrada"
+						defaultValue={ultimo?.combustivel ?? 'etanol'}
+					>
 						<option value="etanol">Etanol</option>
 						<option value="gasolina">Gasolina</option>
 					</select>

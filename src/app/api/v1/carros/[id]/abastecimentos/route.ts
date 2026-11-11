@@ -18,8 +18,8 @@ export async function GET(request: Request, ctx: RouteContext<'/api/v1/carros/[i
 		if (!auth) return naoAutenticado();
 		const { id } = await ctx.params;
 		if (!z.uuid().safeParse(id).success) return carroNaoEncontrado();
-		if (!(await carroExiste(auth.supabase, id))) return carroNaoEncontrado();
-		const itens = await listarAbastecimentos(auth.supabase, id);
+		const [existe, itens] = await Promise.all([carroExiste(auth.supabase, id), listarAbastecimentos(auth.supabase, id)]);
+		if (!existe) return carroNaoEncontrado();
 		const corpo: AbastecimentosApi = { itens, consumoReal: calcularConsumoReal(itens) };
 		return Response.json(corpo);
 	} catch (e) {

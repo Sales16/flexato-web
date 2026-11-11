@@ -3,6 +3,7 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { chamarApi, mensagemDeErro } from '@/lib/api/cliente';
 import { normalizarBusca, palavrasDaBusca } from '@/lib/busca-catalogo';
+import { chaveAoNavegar, indiceDaChave, opcaoAoConfirmar } from '@/lib/navegacao-combo';
 import type { Consumo } from '@/lib/calculo';
 import { numero } from '@/lib/formato';
 import type { CarroApi, VeiculoCatalogoApi } from '@/lib/tipos-api';
@@ -34,7 +35,7 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 	const [texto, setTexto] = useState(rotuloSelecionado);
 	const [editando, setEditando] = useState(false);
 	const [aberto, setAberto] = useState(false);
-	const [ativo, setAtivo] = useState(-1);
+	const [chaveAtiva, setChaveAtiva] = useState<string | null>(null);
 	const [busca, setBusca] = useState<Busca>({ termo: '', itens: null, erro: null });
 
 	const termo = editando ? texto.trim() : '';
@@ -75,7 +76,7 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 		})),
 		{ tipo: 'outro', chave: 'outro', titulo: 'Outro carro', detalhe: 'Digitar os consumos do seu carro' },
 	];
-	const indiceAtivo = ativo < opcoes.length ? ativo : -1;
+	const indiceAtivo = indiceDaChave(opcoes, chaveAtiva);
 
 	let aviso: string | null = null;
 	if (!buscarNoCatalogo) aviso = 'Digite a marca ou o modelo para buscar no catálogo do Inmetro.';
@@ -93,7 +94,7 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 	function fechar() {
 		setAberto(false);
 		setEditando(false);
-		setAtivo(-1);
+		setChaveAtiva(null);
 		setTexto(rotuloSelecionado);
 	}
 
@@ -103,7 +104,7 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 		else aoEscolher({ tipo: 'outro' });
 		setAberto(false);
 		setEditando(false);
-		setAtivo(-1);
+		setChaveAtiva(null);
 	}
 
 	function abrir() {
@@ -115,17 +116,17 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 	function aoTeclar(e: KeyboardEvent<HTMLInputElement>) {
 		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
 			e.preventDefault();
+			const passo = e.key === 'ArrowDown' ? 1 : -1;
 			if (!aberto) {
 				abrir();
-				setAtivo(e.key === 'ArrowDown' ? 0 : opcoes.length - 1);
+				setChaveAtiva(chaveAoNavegar(opcoes, null, passo));
 				return;
 			}
-			const passo = e.key === 'ArrowDown' ? 1 : -1;
-			setAtivo((indiceAtivo + passo + opcoes.length + (indiceAtivo < 0 && passo < 0 ? 1 : 0)) % opcoes.length);
+			setChaveAtiva(chaveAoNavegar(opcoes, chaveAtiva, passo));
 		} else if (e.key === 'Enter') {
 			if (!aberto) return;
 			e.preventDefault();
-			const opcao = opcoes[indiceAtivo] ?? (termo ? opcoes[0] : undefined);
+			const opcao = opcaoAoConfirmar(opcoes, chaveAtiva, termo);
 			if (opcao) escolher(opcao);
 		} else if (e.key === 'Escape') {
 			if (aberto) {
@@ -162,7 +163,7 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 						setTexto(e.target.value);
 						setEditando(true);
 						setAberto(true);
-						setAtivo(-1);
+						setChaveAtiva(null);
 					}}
 					onFocus={e => e.currentTarget.select()}
 					onClick={abrir}
@@ -188,7 +189,7 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 												aria-selected={indice === indiceAtivo}
 												className="combo-opcao"
 												onClick={() => escolher(o)}
-												onMouseMove={() => indice !== indiceAtivo && setAtivo(indice)}
+												onMouseMove={() => indice !== indiceAtivo && setChaveAtiva(o.chave)}
 											>
 												<span className="t">{o.titulo}</span>
 												<span className="d">{o.detalhe}</span>

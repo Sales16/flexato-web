@@ -69,8 +69,9 @@ export function calcularConsumoReal(registros: RegistroAbastecimento[]): Consumo
 	const intervalos: IntervaloConsumo[] = [];
 	let abertura: RegistroAbastecimento | null = null;
 	let anterior: RegistroAbastecimento | null = null;
+	let aberturaPura = false;
+	let carga = new Set<Combustivel>();
 	let litros = 0;
-	let combustiveis = new Set<Combustivel>();
 	let trechos: (Trecho | null)[] = [];
 	let motivo: MotivoDescarte | null = null;
 
@@ -79,14 +80,13 @@ export function calcularConsumoReal(registros: RegistroAbastecimento[]): Consumo
 			if (atual.hodometroKm < anterior.hodometroKm) motivo ??= 'hodometro_inconsistente';
 			if (!(atual.litros > 0)) motivo ??= 'litros_invalidos';
 			litros += atual.litros;
-			combustiveis.add(atual.combustivel);
 			trechos.push(atual.trecho);
 
 			if (atual.tanqueCheio) {
 				const km = atual.hodometroKm - abertura.hodometroKm;
 				if (km <= 0) motivo ??= 'hodometro_inconsistente';
 				if (!(litros > 0)) motivo ??= 'litros_invalidos';
-				const mesmoCombustivel = combustiveis.size === 1 && combustiveis.has(abertura.combustivel);
+				const mesmoCombustivel = aberturaPura && carga.size === 1;
 				if (!mesmoCombustivel) motivo ??= 'combustiveis_misturados';
 				const kmPorLitro = !motivo ? km / litros : null;
 				if (kmPorLitro !== null && (kmPorLitro < CONSUMO_PLAUSIVEL_MIN || kmPorLitro > CONSUMO_PLAUSIVEL_MAX)) motivo = 'consumo_implausivel';
@@ -104,12 +104,13 @@ export function calcularConsumoReal(registros: RegistroAbastecimento[]): Consumo
 		}
 
 		if (atual.tanqueCheio) {
+			aberturaPura = [...carga].every(c => c === atual.combustivel);
 			abertura = atual;
+			carga = new Set([atual.combustivel]);
 			litros = 0;
-			combustiveis = new Set();
 			trechos = [];
 			motivo = null;
-		}
+		} else carga.add(atual.combustivel);
 		anterior = atual;
 	}
 

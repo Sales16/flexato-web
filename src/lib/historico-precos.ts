@@ -1,21 +1,14 @@
 import type { Combustivel } from '@/lib/calculo';
+import { paraPreco, type LinhaPreco } from '@/lib/linha-preco';
 import type { FontePreco, PontoHistoricoApi, Semana } from '@/lib/tipos-api';
 
-export type LinhaPrecoSemanal = {
-	semana_fim: string;
-	produto: Combustivel;
-	preco_medio: number | string;
-	preco_min: number | string | null;
-	preco_max: number | string | null;
-};
+export type LinhaPrecoSemanal = LinhaPreco & { semana_fim: string };
 
 export const SEMANAS_PADRAO = 12;
 export const SEMANAS_MAXIMO = 104;
 
-const numeroOuNulo = (v: number | string | null) => (v === null ? null : Number(v));
-
 function ponto(semana: Semana, linha: LinhaPrecoSemanal, fonte: FontePreco): PontoHistoricoApi {
-	return { semana, precoMedio: Number(linha.preco_medio), precoMin: numeroOuNulo(linha.preco_min), precoMax: numeroOuNulo(linha.preco_max), fonte };
+	return { semana, ...paraPreco(linha, fonte) };
 }
 
 export function montarSeries(semanas: Semana[], linhasUf: LinhaPrecoSemanal[], linhasMunicipio: LinhaPrecoSemanal[]): Record<Combustivel, PontoHistoricoApi[]> {
