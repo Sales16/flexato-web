@@ -1043,6 +1043,10 @@
 	.car.expandido {
 		grid-column: 1 / -1;
 	}
+	.car.expandido .mini,
+	.car.expandido .ratio-line {
+		max-width: 460px;
+	}
 	.car-edit {
 		display: grid;
 		gap: 12px;
@@ -1175,6 +1179,19 @@
 		.nav {
 			margin-left: 0;
 			width: 100%;
+		}
+		.item-abast {
+			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-areas: 'data acao' 'detalhes detalhes';
+		}
+		.item-abast .data {
+			grid-area: data;
+		}
+		.item-abast .detalhes {
+			grid-area: detalhes;
+		}
+		.item-abast .btn {
+			grid-area: acao;
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {
