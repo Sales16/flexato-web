@@ -194,3 +194,19 @@ describe('DELETE /api/v1/carros/{id}/abastecimentos/{abastecimentoId}', () => {
 		expect((await DELETE(requisicao('DELETE', undefined, null), ctxItem())).status).toBe(401);
 	});
 });
+
+describe('limite de requisições dos abastecimentos', () => {
+	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
+		const { ESCRITA } = await import('@/lib/api/limite');
+		const comIp = () => {
+			const r = requisicao('POST', {}, null);
+			r.headers.set('x-forwarded-for', '203.0.113.9');
+			return r;
+		};
+		for (let i = 0; i < ESCRITA.limite; i++) expect((await POST(comIp(), ctx())).status).toBe(401);
+		const resposta = await POST(comIp(), ctx());
+		expect(resposta.status).toBe(429);
+		expect(Number(resposta.headers.get('Retry-After'))).toBeGreaterThan(0);
+		expect((await resposta.json()).erro.codigo).toBe('muitas_requisicoes');
+	});
+});

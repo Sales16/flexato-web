@@ -55,6 +55,7 @@ O método é o de tanque cheio a tanque cheio, separado por combustível:
 
 ## Roadmap
 
+- Aplicativo mobile (repositório separado) consumindo a API `/api/v1`.
 - Editar abastecimentos já registrados (hoje só é possível registrar e remover).
 
 ## Stack
@@ -137,8 +138,6 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
    curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/v1/jobs/precos-anp
    ```
 
-Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
-
 7. Importe o catálogo de carros da tabela PBEV do Inmetro (usa `SUPABASE_SECRET_KEY` do `.env.local`):
 
    ```bash
@@ -147,6 +146,8 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
    ```
 
    O script acha o PDF mais recente na página do PBE Veicular. Para outra edição, use `--url=<link do PDF>` ou `--arquivo=<caminho local>`. Só entram carros flex com consumo de cidade e estrada em etanol e gasolina; a versão inclui motor e transmissão. Rode de novo sempre que o Inmetro publicar uma tabela nova: as versões existentes são atualizadas e as de edições anteriores continuam no catálogo. Os valores de exemplo só são removidos depois que a importação grava tudo com sucesso.
+
+Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
 
 ### Scripts
 
@@ -199,6 +200,8 @@ Para bloquear merges com o CI quebrado, ative em Settings → Branches uma regra
 Fatia 1 implementada: calculadora, preços da ANP por cidade/UF, garagem com login e API para o app.
 
 Fatia 2 implementada: importador da tabela PBEV do Inmetro (`npm run importar:pbev`), busca no catálogo sem acento e por relevância, e busca de carro com autocomplete na calculadora. A edição 2026 da PBEV traz 310 versões flex, das quais 299 entram no catálogo (as demais não têm consumo nos dois combustíveis ou são repetidas).
+
+Fatia 3 implementada: CI no GitHub Actions, testes das rotas com banco simulado, limite de requisições por IP, headers de segurança, ajustes de layout no celular e guia de deploy na Vercel.
 
 Fatia 4 implementada: localização automática. O navegador pede permissão, a posição (arredondada para 4 casas) vai só para `/api/v1/localizacao`, que encontra o município no PostGIS e não grava nada.
 

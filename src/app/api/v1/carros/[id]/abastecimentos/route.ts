@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { autenticar } from '@/lib/api/autenticacao';
+import { ESCRITA, LEITURA, limitar } from '@/lib/api/limite';
 import { erro, erroInterno, erroValidacao, lerJson } from '@/lib/api/respostas';
 import { calcularConsumoReal } from '@/lib/consumo-real';
 import { carroExiste, criarAbastecimento, listarAbastecimentos } from '@/lib/dados/abastecimentos';
@@ -10,11 +11,13 @@ const naoAutenticado = () => erro(401, 'nao_autenticado', 'Entre na sua conta pa
 const carroNaoEncontrado = () => erro(404, 'carro_nao_encontrado', 'Carro não encontrado na sua garagem.');
 
 export async function GET(request: Request, ctx: RouteContext<'/api/v1/carros/[id]/abastecimentos'>) {
-	const auth = await autenticar(request);
-	if (!auth) return naoAutenticado();
-	const { id } = await ctx.params;
-	if (!z.uuid().safeParse(id).success) return carroNaoEncontrado();
+	const bloqueio = limitar(request, LEITURA);
+	if (bloqueio) return bloqueio;
 	try {
+		const auth = await autenticar(request);
+		if (!auth) return naoAutenticado();
+		const { id } = await ctx.params;
+		if (!z.uuid().safeParse(id).success) return carroNaoEncontrado();
 		if (!(await carroExiste(auth.supabase, id))) return carroNaoEncontrado();
 		const itens = await listarAbastecimentos(auth.supabase, id);
 		const corpo: AbastecimentosApi = { itens, consumoReal: calcularConsumoReal(itens) };
@@ -25,13 +28,15 @@ export async function GET(request: Request, ctx: RouteContext<'/api/v1/carros/[i
 }
 
 export async function POST(request: Request, ctx: RouteContext<'/api/v1/carros/[id]/abastecimentos'>) {
-	const auth = await autenticar(request);
-	if (!auth) return naoAutenticado();
-	const { id } = await ctx.params;
-	if (!z.uuid().safeParse(id).success) return carroNaoEncontrado();
-	const entrada = abastecimentoCriarSchema.safeParse(await lerJson(request));
-	if (!entrada.success) return erroValidacao(entrada.error);
+	const bloqueio = limitar(request, ESCRITA);
+	if (bloqueio) return bloqueio;
 	try {
+		const auth = await autenticar(request);
+		if (!auth) return naoAutenticado();
+		const { id } = await ctx.params;
+		if (!z.uuid().safeParse(id).success) return carroNaoEncontrado();
+		const entrada = abastecimentoCriarSchema.safeParse(await lerJson(request));
+		if (!entrada.success) return erroValidacao(entrada.error);
 		if (!(await carroExiste(auth.supabase, id))) return carroNaoEncontrado();
 		return Response.json(await criarAbastecimento(auth.supabase, id, entrada.data), { status: 201 });
 	} catch (e) {

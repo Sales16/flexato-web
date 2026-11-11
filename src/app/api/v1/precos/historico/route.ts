@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { LEITURA, limitar } from '@/lib/api/limite';
 import { erro, erroInterno } from '@/lib/api/respostas';
 import { buscarHistoricoPrecos } from '@/lib/dados/historico-precos';
 import { SEMANAS_MAXIMO, SEMANAS_PADRAO } from '@/lib/historico-precos';
@@ -6,6 +7,8 @@ import { clientePublico } from '@/lib/supabase/servidor';
 import { ehUf, normalizarNome } from '@/lib/ufs';
 
 export async function GET(request: NextRequest) {
+	const bloqueio = limitar(request, LEITURA);
+	if (bloqueio) return bloqueio;
 	const parametros = request.nextUrl.searchParams;
 	const uf = (parametros.get('uf') ?? '').toUpperCase();
 	const municipio = parametros.get('municipio');

@@ -8,16 +8,18 @@ import { clienteAdmin } from '@/lib/supabase/servidor';
 
 export const maxDuration = 60;
 
-function autorizado(request: Request): boolean {
-	const recebido = Buffer.from(tokenBearer(request) ?? '');
+function autorizado(token: string | null): boolean {
+	const recebido = Buffer.from(token ?? '');
 	const esperado = Buffer.from(cronSecret());
 	return recebido.length === esperado.length && timingSafeEqual(recebido, esperado);
 }
 
 export async function GET(request: NextRequest) {
+	const token = tokenBearer(request);
+	const forcar = request.nextUrl.searchParams.get('forcar') === '1';
 	try {
-		if (!autorizado(request)) return erro(401, 'nao_autorizado', 'Token do job inválido.');
-		const resultado = await importarPrecosAnp(clienteAdmin(), { forcar: request.nextUrl.searchParams.get('forcar') === '1' });
+		if (!autorizado(token)) return erro(401, 'nao_autorizado', 'Token do job inválido.');
+		const resultado = await importarPrecosAnp(clienteAdmin(), { forcar });
 		return Response.json(resultado);
 	} catch (e) {
 		return erroInterno(e);
