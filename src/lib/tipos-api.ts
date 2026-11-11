@@ -79,3 +79,7 @@ export type HistoricoPrecosApi = {
 	municipio: MunicipioApi | null;
 	series: Record<Combustivel, PontoHistoricoApi[]>;
 };
+
+export type MunicipioLocalizadoApi = { ibge: number; nome: string; chave: string | null };
+
+export type LocalizacaoApi = { uf: Uf; municipio: MunicipioLocalizadoApi };
