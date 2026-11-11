@@ -38,12 +38,24 @@ O combustível com o menor `custo_km` vence. A ponderação é feita sobre o cus
 - **Conta opcional**: salve seus carros e acesse os mesmos dados no aplicativo mobile.
 - **Localização automática**: com sua permissão, o navegador informa a localização para descobrir sua cidade e UF. Também é possível escolher manualmente.
 - **Preços por localidade**: média da sua cidade quando a ANP tiver dados dela, ou média da UF.
+- **Faixa de preço da semana**: mínimo, médio e máximo da ANP abaixo de cada preço, para comparar com o posto.
+- **Histórico de preços**: gráfico do preço médio semanal de etanol e gasolina na sua cidade ou UF.
+- **Editar carro**: renomeie e ajuste os quatro consumos direto na garagem.
+- **Abastecimentos e consumo real**: registre litros e hodômetro a cada abastecimento. O Flexato mede o consumo real e sugere atualizar o km/l do carro, sempre com a sua confirmação.
+
+### Como o consumo real é medido
+
+O método é o de tanque cheio a tanque cheio, separado por combustível:
+
+- Cada abastecimento com tanque cheio fecha um intervalo e abre o próximo. O consumo do intervalo é `km rodados entre os dois enchimentos ÷ litros abastecidos desde o anterior` (somando os parciais do meio).
+- O primeiro tanque cheio só abre a medição. Parciais antes dele são ignorados.
+- O intervalo é descartado quando o hodômetro volta ou não avança, quando há litros zerados, quando há troca de combustível no meio (o tanque tinha mistura) ou quando o resultado fica fora de 2 a 40 km/l, sinal de abastecimento não registrado ou hodômetro digitado errado.
+- O trecho do intervalo é cidade ou estrada quando todos os abastecimentos que o fecham marcam o mesmo trecho. Só nesses casos o app sugere trocar o km/l correspondente. Os demais aparecem como "trechos misturados".
+- Com vários intervalos, o resultado é `soma dos km ÷ soma dos litros`.
 
 ## Roadmap
 
-- Registro de abastecimentos (litros + hodômetro) para calcular o consumo real e sugerir ajuste nos km/l do carro.
-- Faixa de preço da semana (mínimo / médio / máximo) e "preço de virada": até quanto o etanol compensa para o seu carro.
-- Histórico e gráficos de preço por localidade.
+- Editar abastecimentos já registrados (hoje só é possível registrar e remover).
 
 ## Stack
 
@@ -77,15 +89,18 @@ Os valores do Inmetro vêm de testes padronizados e podem diferir do consumo no 
 
 Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Bearer <access_token do Supabase>`.
 
-| Método         | Rota                                | Descrição                                                                     |
-| -------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
-| GET            | `/locais`                           | UFs e municípios com preço na semana mais recente                             |
-| GET            | `/precos?uf=SP&municipio=SAO PAULO` | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados  |
-| GET            | `/catalogo?q=onix&limite=50`        | Busca no catálogo de veículos                                                 |
-| POST           | `/calculo`                          | Calcula o combustível mais vantajoso                                          |
-| GET / POST     | `/carros`                           | Lista ou cria carros da garagem                                               |
-| PATCH / DELETE | `/carros/{id}`                      | Altera ou remove um carro da garagem                                          |
-| GET            | `/jobs/precos-anp`                  | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`) |
+| Método         | Rota                                                     | Descrição                                                                                                           |
+| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET            | `/locais`                                                | UFs e municípios com preço na semana mais recente                                                                   |
+| GET            | `/precos?uf=SP&municipio=SAO PAULO`                      | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados                                        |
+| GET            | `/precos/historico?uf=SP&municipio=SAO PAULO&semanas=12` | Séries semanais de etanol e gasolina (1 a 104 semanas, padrão 12), com a UF quando a cidade não tem dados na semana |
+| GET            | `/catalogo?q=onix&limite=50`                             | Busca no catálogo de veículos                                                                                       |
+| POST           | `/calculo`                                               | Calcula o combustível mais vantajoso                                                                                |
+| GET / POST     | `/carros`                                                | Lista ou cria carros da garagem                                                                                     |
+| PATCH / DELETE | `/carros/{id}`                                           | Altera ou remove um carro da garagem                                                                                |
+| GET / POST     | `/carros/{id}/abastecimentos`                            | Lista (com o consumo real medido) ou registra abastecimentos do carro                                               |
+| DELETE         | `/carros/{id}/abastecimentos/{abastecimentoId}`          | Remove um abastecimento                                                                                             |
+| GET            | `/jobs/precos-anp`                                       | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`)                                       |
 
 Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
 
@@ -96,7 +111,7 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
 1. Instale as dependências: `npm install`.
 2. Copie `.env.example` para `.env.local` e preencha com os dados do projeto (Project Settings → API Keys). Gere um valor aleatório para `CRON_SECRET`.
 3. Aplique o schema e o seed. Escolha uma opção:
-   - Cole `supabase/migrations/20261111000000_schema_inicial.sql` e depois `supabase/seed.sql` no SQL Editor do Supabase.
+   - Cole as migrations de `supabase/migrations/` em ordem (`20261111000000_schema_inicial.sql`, `20261114000000_abastecimentos.sql`) e depois `supabase/seed.sql` no SQL Editor do Supabase.
    - Ou use a CLI: `npx supabase link --project-ref <ref>`, `npx supabase db push` e rode o seed no SQL Editor.
 4. Em Authentication → URL Configuration, adicione `http://localhost:3000/carros` às Redirect URLs. Para entrar com Google ou Apple, habilite os provedores em Authentication → Providers. O login por link de e-mail funciona sem configuração extra.
 5. Rode `npm run dev` e importe os preços da semana:
@@ -121,6 +136,8 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
 ## Status
 
 Fatia 1 implementada: calculadora, preços da ANP por cidade/UF, garagem com login e API para o app.
+
+Fatia 6 implementada: edição de carro, abastecimentos com consumo real, faixa de preço da semana e histórico de preços. A migration `20261114000000_abastecimentos.sql` precisa ser aplicada no Supabase.
 
 Próximos passos (fatia 2):
 
