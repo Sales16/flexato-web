@@ -1,5 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { ordenarPorRelevancia, palavrasDaBusca } from '@/lib/busca-catalogo';
 import type { FonteCatalogo, VeiculoCatalogoApi } from '@/lib/tipos-api';
 
 type LinhaCatalogo = {
@@ -16,6 +17,7 @@ type LinhaCatalogo = {
 };
 
 const COLUNAS = 'id, marca, modelo, versao, fonte, edicao_pbev, etanol_cidade, etanol_estrada, gasolina_cidade, gasolina_estrada';
+const LIMITE_CANDIDATOS = 1000;
 
 function paraApi(l: LinhaCatalogo): VeiculoCatalogoApi {
 	return {
@@ -32,16 +34,20 @@ function paraApi(l: LinhaCatalogo): VeiculoCatalogoApi {
 	};
 }
 
-function termoSeguro(termo: string): string {
-	return termo.replace(/[%_,().*\\]/g, ' ').trim();
-}
-
 export async function buscarCatalogo(supabase: SupabaseClient, termo: string, limite: number): Promise<VeiculoCatalogoApi[]> {
-	let consulta = supabase.from('veiculos_catalogo').select(COLUNAS).order('marca').order('modelo').order('versao').limit(limite);
-	for (const palavra of termoSeguro(termo).split(/\s+/).filter(Boolean)) {
+	const palavras = palavrasDaBusca(termo);
+	let consulta = supabase
+		.from('veiculos_catalogo')
+		.select(COLUNAS)
+		.order('marca')
+		.order('modelo')
+		.order('versao')
+		.limit(palavras.length ? LIMITE_CANDIDATOS : limite);
+	for (const palavra of palavras) {
 		consulta = consulta.ilike('busca', `%${palavra}%`);
 	}
 	const { data, error } = await consulta;
 	if (error) throw error;
-	return (data as LinhaCatalogo[]).map(paraApi);
+	const itens = (data as LinhaCatalogo[]).map(paraApi);
+	return palavras.length ? ordenarPorRelevancia(itens, termo).slice(0, limite) : itens;
 }
