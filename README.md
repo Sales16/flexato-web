@@ -47,12 +47,12 @@ O combustível com o menor `custo_km` vence. A ponderação é feita sobre o cus
 
 ## Stack
 
-| Camada            | Tecnologia                                                            |
-| ----------------- | --------------------------------------------------------------------- |
-| Web (front + API) | [Next.js](https://nextjs.org/) 16 com TypeScript                      |
-| UI                | [Tailwind CSS](https://tailwindcss.com/) 4                            |
-| Banco de dados    | PostgreSQL via [Supabase](https://supabase.com/) (PostGIS na fatia 2) |
-| Autenticação      | Supabase Auth                                                         |
+| Camada            | Tecnologia                                                     |
+| ----------------- | -------------------------------------------------------------- |
+| Web (front + API) | [Next.js](https://nextjs.org/) 16 com TypeScript               |
+| UI                | [Tailwind CSS](https://tailwindcss.com/) 4                     |
+| Banco de dados    | PostgreSQL via [Supabase](https://supabase.com/) (com PostGIS) |
+| Autenticação      | Supabase Auth                                                  |
 
 ## Arquitetura
 
@@ -77,15 +77,16 @@ Os valores do Inmetro vêm de testes padronizados e podem diferir do consumo no 
 
 Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Bearer <access_token do Supabase>`.
 
-| Método         | Rota                                | Descrição                                                                     |
-| -------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
-| GET            | `/locais`                           | UFs e municípios com preço na semana mais recente                             |
-| GET            | `/precos?uf=SP&municipio=SAO PAULO` | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados  |
-| GET            | `/catalogo?q=onix&limite=50`        | Busca no catálogo de veículos                                                 |
-| POST           | `/calculo`                          | Calcula o combustível mais vantajoso                                          |
-| GET / POST     | `/carros`                           | Lista ou cria carros da garagem                                               |
-| PATCH / DELETE | `/carros/{id}`                      | Altera ou remove um carro da garagem                                          |
-| GET            | `/jobs/precos-anp`                  | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`) |
+| Método         | Rota                                 | Descrição                                                                          |
+| -------------- | ------------------------------------ | ---------------------------------------------------------------------------------- |
+| GET            | `/locais`                            | UFs e municípios com preço na semana mais recente                                  |
+| GET            | `/localizacao?lat=-23.55&lng=-46.63` | Município e UF do ponto (malha do IBGE) e a chave da ANP quando a cidade tem preço |
+| GET            | `/precos?uf=SP&municipio=SAO PAULO`  | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados       |
+| GET            | `/catalogo?q=onix&limite=50`         | Busca no catálogo de veículos                                                      |
+| POST           | `/calculo`                           | Calcula o combustível mais vantajoso                                               |
+| GET / POST     | `/carros`                            | Lista ou cria carros da garagem                                                    |
+| PATCH / DELETE | `/carros/{id}`                       | Altera ou remove um carro da garagem                                               |
+| GET            | `/jobs/precos-anp`                   | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`)      |
 
 Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
 
@@ -96,10 +97,20 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
 1. Instale as dependências: `npm install`.
 2. Copie `.env.example` para `.env.local` e preencha com os dados do projeto (Project Settings → API Keys). Gere um valor aleatório para `CRON_SECRET`.
 3. Aplique o schema e o seed. Escolha uma opção:
-   - Cole `supabase/migrations/20261111000000_schema_inicial.sql` e depois `supabase/seed.sql` no SQL Editor do Supabase.
+   - Cole no SQL Editor do Supabase, nesta ordem: `supabase/migrations/20261111000000_schema_inicial.sql`, `supabase/migrations/20261113000000_localizacao_municipios.sql` e `supabase/seed.sql`.
    - Ou use a CLI: `npx supabase link --project-ref <ref>`, `npx supabase db push` e rode o seed no SQL Editor.
-4. Em Authentication → URL Configuration, adicione `http://localhost:3000/carros` às Redirect URLs. Para entrar com Google ou Apple, habilite os provedores em Authentication → Providers. O login por link de e-mail funciona sem configuração extra.
-5. Rode `npm run dev` e importe os preços da semana:
+4. Importe a malha municipal do IBGE (usada pela localização automática):
+
+   ```bash
+   npm run importar:malha
+   ```
+
+   A migration `20261113000000_localizacao_municipios.sql` já habilita o PostGIS no schema `extensions` (`create extension if not exists postgis with schema extensions`). Se o SQL Editor recusar, habilite em Database → Extensions → postgis, escolhendo o schema `extensions`, e rode a migration de novo.
+
+   O script baixa a malha da [API de malhas do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=4) em qualidade intermediária (cerca de 14 MB, 5.571 municípios), junta com nome e UF da API de localidades e grava em lotes na tabela `municipios_ibge` usando `SUPABASE_SECRET_KEY` do `.env.local`. No banco, a tabela ocupa cerca de 11 MB. Opções: `--qualidade=minima` (cerca de 4 MB, fronteiras menos precisas) e `--simular` (baixa e valida sem gravar). Pode rodar de novo quando o IBGE atualizar a malha: os municípios existentes são atualizados.
+
+5. Em Authentication → URL Configuration, adicione `http://localhost:3000/carros` às Redirect URLs. Para entrar com Google ou Apple, habilite os provedores em Authentication → Providers. O login por link de e-mail funciona sem configuração extra.
+6. Rode `npm run dev` e importe os preços da semana:
 
    ```bash
    curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/v1/jobs/precos-anp
@@ -109,23 +120,25 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
 
 ### Scripts
 
-| Script              | O que faz                                 |
-| ------------------- | ----------------------------------------- |
-| `npm run dev`       | Servidor de desenvolvimento               |
-| `npm run build`     | Build de produção                         |
-| `npm test`          | Testes (Vitest)                           |
-| `npm run typecheck` | Gera os tipos de rota e roda o TypeScript |
-| `npm run lint`      | ESLint                                    |
-| `npm run format`    | Prettier                                  |
+| Script                   | O que faz                                        |
+| ------------------------ | ------------------------------------------------ |
+| `npm run dev`            | Servidor de desenvolvimento                      |
+| `npm run build`          | Build de produção                                |
+| `npm test`               | Testes (Vitest)                                  |
+| `npm run typecheck`      | Gera os tipos de rota e roda o TypeScript        |
+| `npm run lint`           | ESLint                                           |
+| `npm run format`         | Prettier                                         |
+| `npm run importar:malha` | Importa a malha municipal do IBGE para o PostGIS |
 
 ## Status
 
 Fatia 1 implementada: calculadora, preços da ANP por cidade/UF, garagem com login e API para o app.
 
-Próximos passos (fatia 2):
+Fatia 4 implementada: localização automática. O navegador pede permissão, a posição (arredondada para 4 casas) vai só para `/api/v1/localizacao`, que encontra o município no PostGIS e não grava nada.
+
+Próximos passos:
 
 - Importar a tabela PBEV do Inmetro. Hoje o catálogo tem só valores de exemplo, marcados como `fonte = 'exemplo'`.
-- Localização automática com PostGIS e a malha municipal do IBGE.
 
 ## Licença
 
