@@ -7,6 +7,7 @@ vi.mock('@/lib/dados/carros', () => ({ listarCarros: vi.fn(), criarCarro: vi.fn(
 const { clienteDoUsuario } = await import('@/lib/supabase/servidor');
 const { criarCarro, listarCarros } = await import('@/lib/dados/carros');
 const { GET, POST } = await import('./route');
+const { ESCRITA } = await import('@/lib/api/limite');
 
 const consumo = { etanol: { cidade: 8.4, estrada: 10 }, gasolina: { cidade: 12.6, estrada: 14.8 } };
 const carro = {
@@ -68,6 +69,22 @@ describe('GET /api/v1/carros', () => {
 		const resposta = await GET(requisicao('GET'));
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+	});
+
+	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
+		vi.mocked(criarCarro).mockResolvedValue(carro);
+		const comIp = () => {
+			const r = requisicao('POST', { corpo: { nome: 'Onix', consumo } });
+			r.headers.set('x-forwarded-for', '198.51.100.7');
+			return r;
+		};
+		for (let i = 0; i < ESCRITA.limite; i++) expect((await POST(comIp())).status).toBe(201);
+		getUser.mockClear();
+		const resposta = await POST(comIp());
+		expect(resposta.status).toBe(429);
+		expect(Number(resposta.headers.get('Retry-After'))).toBeGreaterThan(0);
+		expect(await resposta.json()).toEqual({ erro: { codigo: 'muitas_requisicoes', mensagem: expect.any(String) } });
+		expect(getUser).not.toHaveBeenCalled();
 	});
 });
 

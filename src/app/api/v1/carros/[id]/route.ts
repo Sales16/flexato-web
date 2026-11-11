@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { autenticar } from '@/lib/api/autenticacao';
+import { ESCRITA, limitar } from '@/lib/api/limite';
 import { erro, erroInterno, erroValidacao, lerJson } from '@/lib/api/respostas';
 import { alterarCarro, removerCarro } from '@/lib/dados/carros';
 import { carroAlterarSchema } from '@/lib/esquemas';
@@ -8,6 +9,8 @@ const naoAutenticado = () => erro(401, 'nao_autenticado', 'Entre na sua conta pa
 const naoEncontrado = () => erro(404, 'carro_nao_encontrado', 'Carro não encontrado na sua garagem.');
 
 export async function PATCH(request: Request, ctx: RouteContext<'/api/v1/carros/[id]'>) {
+	const bloqueio = limitar(request, ESCRITA);
+	if (bloqueio) return bloqueio;
 	try {
 		const auth = await autenticar(request);
 		if (!auth) return naoAutenticado();
@@ -23,6 +26,8 @@ export async function PATCH(request: Request, ctx: RouteContext<'/api/v1/carros/
 }
 
 export async function DELETE(request: Request, ctx: RouteContext<'/api/v1/carros/[id]'>) {
+	const bloqueio = limitar(request, ESCRITA);
+	if (bloqueio) return bloqueio;
 	try {
 		const auth = await autenticar(request);
 		if (!auth) return naoAutenticado();
