@@ -110,7 +110,7 @@ Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
 
 ### Limite de requisições
 
-Cada IP pode fazer até **120 leituras por minuto** (`/locais`, `/precos`, `/catalogo`, `/calculo` e `GET /carros`) e **30 escritas por minuto** (`POST /carros`, `PATCH` e `DELETE /carros/{id}`). Acima disso a API responde `429` com o código `muitas_requisicoes` e o header `Retry-After` (em segundos). O job da ANP não tem limite, porque já exige o `CRON_SECRET`.
+Cada IP pode fazer até **120 leituras por minuto** (`/locais`, `/localizacao`, `/precos`, `/precos/historico`, `/catalogo`, `/calculo`, `GET /carros` e `GET /carros/{id}/abastecimentos`) e **30 escritas por minuto** (`POST /carros`, `PATCH` e `DELETE /carros/{id}`, `POST /carros/{id}/abastecimentos` e `DELETE /carros/{id}/abastecimentos/{abastecimentoId}`). Acima disso a API responde `429` com o código `muitas_requisicoes` e o header `Retry-After` (em segundos). O job da ANP não tem limite, porque já exige o `CRON_SECRET`.
 
 A contagem fica na memória de cada instância do servidor. Na Vercel, cada instância serverless conta separadamente e zera quando é reciclada. Por isso o limite segura rajadas de um mesmo cliente, mas não garante uma cota global exata. Para um limite global, há duas opções sem mudar o contrato da API: as regras de rate limit do Firewall da Vercel (confira a disponibilidade no seu plano) ou trocar o armazenamento de `src/lib/api/limite.ts` por um compartilhado, como Redis ou uma tabela no Postgres.
 
