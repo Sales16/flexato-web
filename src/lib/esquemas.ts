@@ -37,3 +37,15 @@ export const calculoSchema = z.object({
 
 export type CarroCriar = z.infer<typeof carroCriarSchema>;
 export type CarroAlterar = z.infer<typeof carroAlterarSchema>;
+
+export const abastecimentoCriarSchema = z.object({
+	data: z.iso.date('use o formato AAAA-MM-DD'),
+	combustivel: z.enum(['etanol', 'gasolina'], 'use etanol ou gasolina'),
+	litros: z.number().positive('deve ser maior que zero').max(999.99, 'deve ser menor que 1000'),
+	hodometroKm: z.number().int('use um número inteiro de km').min(0, 'não pode ser negativo').max(9999999, 'deve ser menor que 10.000.000'),
+	precoLitro: z.number().positive('deve ser maior que zero').max(99.999, 'deve ser menor que 100').nullable().optional(),
+	tanqueCheio: z.boolean('informe se encheu o tanque'),
+	trecho: z.enum(['cidade', 'estrada', 'misto'], 'use cidade, estrada ou misto').nullable().optional(),
+});
+
+export type AbastecimentoCriar = z.infer<typeof abastecimentoCriarSchema>;
