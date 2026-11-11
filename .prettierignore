@@ -19,3 +19,5 @@ supabase/.branches/
 supabase/.temp/
 
 public/
+.vitest/
+AGENTS.md

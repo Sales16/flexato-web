@@ -47,12 +47,12 @@ O combustível com o menor `custo_km` vence. A ponderação é feita sobre o cus
 
 ## Stack
 
-| Camada | Tecnologia |
-| --- | --- |
-| Web (front + API) | [Next.js](https://nextjs.org/) com TypeScript |
-| UI | [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| Banco de dados | PostgreSQL + PostGIS via [Supabase](https://supabase.com/) |
-| Autenticação | Supabase Auth |
+| Camada            | Tecnologia                                                                     |
+| ----------------- | ------------------------------------------------------------------------------ |
+| Web (front + API) | [Next.js](https://nextjs.org/) com TypeScript                                  |
+| UI                | [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
+| Banco de dados    | PostgreSQL + PostGIS via [Supabase](https://supabase.com/)                     |
+| Autenticação      | Supabase Auth                                                                  |
 
 ## Arquitetura
 
@@ -65,11 +65,11 @@ O combustível com o menor `custo_km` vence. A ponderação é feita sobre o cus
 
 ## Fontes de dados
 
-| Dado | Fonte | Formato |
-| --- | --- | --- |
-| Consumo dos veículos | [Inmetro – PBE Veicular](https://www.gov.br/inmetro/pt-br/assuntos/avaliacao-da-conformidade/programa-brasileiro-de-etiquetagem/tabelas-de-eficiencia-energetica/veiculos-automotivos-pbe-veicular) | PDF / planilha |
-| Preço dos combustíveis | [ANP – Levantamento de Preços de Combustíveis](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas) | XLSX semanal |
-| Malha municipal | [IBGE – Malhas territoriais](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais.html) | Shapefile / GeoJSON |
+| Dado                   | Fonte                                                                                                                                                                                               | Formato             |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Consumo dos veículos   | [Inmetro – PBE Veicular](https://www.gov.br/inmetro/pt-br/assuntos/avaliacao-da-conformidade/programa-brasileiro-de-etiquetagem/tabelas-de-eficiencia-energetica/veiculos-automotivos-pbe-veicular) | PDF / planilha      |
+| Preço dos combustíveis | [ANP – Levantamento de Preços de Combustíveis](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas)     | XLSX semanal        |
+| Malha municipal        | [IBGE – Malhas territoriais](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais.html)                                                                                | Shapefile / GeoJSON |
 
 Os valores do Inmetro vêm de testes padronizados e podem diferir do consumo no dia a dia. Os preços da ANP são médias semanais e podem variar entre postos. Por isso, o usuário sempre pode editar ambos.
 
