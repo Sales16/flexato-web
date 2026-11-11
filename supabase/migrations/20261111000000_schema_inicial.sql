@@ -78,6 +78,11 @@ create trigger carros_atualizado_em
 before update on public.carros
 for each row execute function public.tocar_atualizado_em();
 
+grant select on public.importacoes_precos, public.precos_uf, public.precos_municipio, public.veiculos_catalogo to anon, authenticated;
+grant select, insert, update, delete on public.carros to authenticated;
+grant select, insert, update, delete on public.importacoes_precos, public.precos_uf, public.precos_municipio, public.veiculos_catalogo to service_role;
+grant usage, select on all sequences in schema public to service_role;
+
 alter table public.importacoes_precos enable row level security;
 alter table public.precos_uf enable row level security;
 alter table public.precos_municipio enable row level security;
