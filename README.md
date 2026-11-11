@@ -89,6 +89,12 @@ Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Be
 
 Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
 
+### Limite de requisições
+
+Cada IP pode fazer até **120 leituras por minuto** (`/locais`, `/precos`, `/catalogo`, `/calculo` e `GET /carros`) e **30 escritas por minuto** (`POST /carros`, `PATCH` e `DELETE /carros/{id}`). Acima disso a API responde `429` com o código `muitas_requisicoes` e o header `Retry-After` (em segundos). O job da ANP não tem limite, porque já exige o `CRON_SECRET`.
+
+A contagem fica na memória de cada instância do servidor. Na Vercel, cada instância serverless conta separadamente e zera quando é reciclada. Por isso o limite segura rajadas de um mesmo cliente, mas não garante uma cota global exata. Para um limite global, há duas opções sem mudar o contrato da API: as regras de rate limit do Firewall da Vercel (confira a disponibilidade no seu plano) ou trocar o armazenamento de `src/lib/api/limite.ts` por um compartilhado, como Redis ou uma tabela no Postgres.
+
 ## Como rodar
 
 Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dashboard).
@@ -117,6 +123,39 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
 | `npm run typecheck` | Gera os tipos de rota e roda o TypeScript |
 | `npm run lint`      | ESLint                                    |
 | `npm run format`    | Prettier                                  |
+
+## Deploy na Vercel
+
+1. Importe o repositório na Vercel. O framework Next.js é detectado sozinho e o `vercel.json` já agenda o job da ANP.
+2. Em Settings → Environment Variables, cadastre para Production (e Preview, se for usar):
+
+   | Variável                               | Valor                                                                |
+   | -------------------------------------- | -------------------------------------------------------------------- |
+   | `NEXT_PUBLIC_SUPABASE_URL`             | URL do projeto no Supabase                                           |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Chave publishable                                                    |
+   | `SUPABASE_SECRET_KEY`                  | Chave secret (só no servidor; nunca use prefixo `NEXT_PUBLIC_`)      |
+   | `CRON_SECRET`                          | Valor aleatório longo, por exemplo a saída de `openssl rand -hex 32` |
+
+   As variáveis `NEXT_PUBLIC_*` entram no bundle e na política de segurança (CSP) durante o build. Se mudar alguma delas, faça um novo deploy.
+
+3. **Cron**: quando `CRON_SECRET` está configurada, a Vercel envia `Authorization: Bearer <CRON_SECRET>` ao chamar `/api/v1/jobs/precos-anp`, e a rota recusa qualquer outro token. O agendamento é diário (`0 12 * * *`, em UTC); no plano Hobby a Vercel só aceita crons diários. Para rodar na hora, use o botão Run em Settings → Cron Jobs ou o `curl` da seção anterior com a URL de produção.
+4. **Supabase → Authentication → URL Configuration**:
+   - **Site URL**: o domínio de produção, por exemplo `https://flexato.com.br`.
+   - **Redirect URLs**: adicione `https://<seu-dominio>/carros`. Para testar login em deploys de preview, adicione também o padrão das URLs de preview da Vercel, por exemplo `https://*-<sua-conta>.vercel.app/carros`.
+5. **Provedores de login** (Authentication → Providers):
+   - **Google**: crie um OAuth Client do tipo "Web application" no Google Cloud Console, com `https://<ref-do-projeto>.supabase.co/auth/v1/callback` em Authorized redirect URIs, e cole o Client ID e o Client Secret no Supabase.
+   - **Apple**: exige uma conta paga no Apple Developer Program. Crie um App ID e um Services ID com Sign in with Apple, cadastre o mesmo callback do Supabase como Return URL e gere a chave `.p8`. O secret derivado dessa chave expira e precisa ser renovado periodicamente; siga o guia de Apple no painel do Supabase. Sem a conta paga, o provedor fica desligado e o botão "Continuar com Apple" leva a uma página de erro do Supabase. Nesse caso, esconda o botão até configurar a Apple.
+   - **Link por e-mail**: funciona sem configuração extra, mas o SMTP padrão do Supabase tem limite baixo de envios. Em produção, configure um SMTP próprio em Authentication → Emails.
+
+### Headers de segurança
+
+O `next.config.ts` envia CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` e `Permissions-Policy` em todas as rotas. A CSP só permite conexões com o próprio site e com o projeto do Supabase. Se o front passar a chamar outro domínio, inclua esse domínio em `connect-src`.
+
+## CI
+
+O workflow `.github/workflows/ci.yml` roda em todo push e pull request, com Node 24: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run format:check` e `npm run build`. O build não precisa de segredos: sem as variáveis do Supabase o app compila e o login aparece como não configurado. Os testes das rotas usam mocks do Supabase e não acessam a rede.
+
+Para bloquear merges com o CI quebrado, ative em Settings → Branches uma regra de proteção na `main` exigindo o check "Lint, tipos, testes e build".
 
 ## Status
 
