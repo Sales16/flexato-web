@@ -14,7 +14,7 @@ const TRECHO_MEDIDO: Record<TrechoMedido, string> = { cidade: 'na cidade', estra
 const MOTIVO: Record<MotivoDescarte, string> = {
 	hodometro_inconsistente: 'hodômetro igual ou menor que o anterior',
 	litros_invalidos: 'litros zerados',
-	combustiveis_misturados: 'troca de combustível no meio',
+	combustiveis_misturados: 'tanque com mistura de etanol e gasolina',
 	consumo_implausivel: 'consumo fora de 2 a 40 km/l, talvez um abastecimento sem registro',
 };
 

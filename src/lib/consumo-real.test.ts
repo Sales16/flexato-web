@@ -59,22 +59,32 @@ describe('calcularConsumoReal (tanque cheio a tanque cheio)', () => {
 			reg({ data: '2026-09-20', hodometroKm: 1700, litros: 50 }),
 			reg({ data: '2026-10-01', hodometroKm: 2300, litros: 50, combustivel: 'gasolina' }),
 			reg({ data: '2026-10-10', hodometroKm: 2900, litros: 50, combustivel: 'gasolina' }),
+			reg({ data: '2026-10-20', hodometroKm: 3500, litros: 50, combustivel: 'gasolina' }),
 		]);
+		expect(r.intervalos.map(i => i.motivoDescarte)).toEqual([null, null, null, 'combustiveis_misturados', null]);
 		expect(r.medicoes).toEqual([
-			{ combustivel: 'etanol', trecho: null, km: 700, litros: 80, kmPorLitro: 8.75, intervalos: 2 },
+			{ combustivel: 'etanol', trecho: null, km: 1300, litros: 130, kmPorLitro: 10, intervalos: 3 },
 			{ combustivel: 'gasolina', trecho: null, km: 600, litros: 50, kmPorLitro: 12, intervalos: 1 },
 		]);
 	});
 
-	it('descarta o intervalo de troca de combustível: o tanque tinha uma mistura dos dois', () => {
+	it('o combustível que fecha o intervalo não importa: os litros dele repõem o que foi queimado do tanque anterior', () => {
+		const r = calcularConsumoReal([
+			reg({ data: '2026-10-01', hodometroKm: 1000, litros: 40, combustivel: 'gasolina' }),
+			reg({ data: '2026-10-10', hodometroKm: 1500, litros: 45, combustivel: 'etanol' }),
+		]);
+		expect(r.intervalos[0]).toMatchObject({ combustivel: 'gasolina', motivoDescarte: null, kmPorLitro: 11.11 });
+	});
+
+	it('descarta o primeiro tanque depois da troca de combustível: o resto do tanque anterior se mistura', () => {
 		const r = calcularConsumoReal([
 			reg({ data: '2026-10-01', hodometroKm: 1000, litros: 40, combustivel: 'gasolina' }),
 			reg({ data: '2026-10-10', hodometroKm: 1500, litros: 45, combustivel: 'etanol' }),
 			reg({ data: '2026-10-20', hodometroKm: 1860, litros: 40, combustivel: 'etanol' }),
 		]);
-		expect(r.intervalos.map(i => i.motivoDescarte)).toEqual(['combustiveis_misturados', null]);
-		expect(r.intervalos[0].combustivel).toBeNull();
-		expect(r.medicoes).toEqual([{ combustivel: 'etanol', trecho: null, km: 360, litros: 40, kmPorLitro: 9, intervalos: 1 }]);
+		expect(r.intervalos.map(i => i.motivoDescarte)).toEqual([null, 'combustiveis_misturados']);
+		expect(r.intervalos[1].combustivel).toBeNull();
+		expect(r.medicoes).toEqual([{ combustivel: 'gasolina', trecho: null, km: 500, litros: 45, kmPorLitro: 11.11, intervalos: 1 }]);
 	});
 
 	it('descarta intervalo com parcial de outro combustível no meio', () => {
@@ -85,6 +95,39 @@ describe('calcularConsumoReal (tanque cheio a tanque cheio)', () => {
 		]);
 		expect(r.intervalos[0].motivoDescarte).toBe('combustiveis_misturados');
 		expect(r.medicoes).toEqual([]);
+	});
+
+	it('o resto de um tanque misturado contamina o intervalo seguinte, mesmo com o registro anterior do mesmo combustível', () => {
+		const r = calcularConsumoReal([
+			reg({ data: '2026-10-01', hodometroKm: 1000, litros: 40, combustivel: 'gasolina' }),
+			reg({ data: '2026-10-05', hodometroKm: 1200, litros: 10, tanqueCheio: false }),
+			reg({ data: '2026-10-10', hodometroKm: 1500, litros: 30 }),
+			reg({ data: '2026-10-20', hodometroKm: 1860, litros: 40 }),
+			reg({ data: '2026-10-30', hodometroKm: 2220, litros: 40 }),
+		]);
+		expect(r.intervalos.map(i => i.motivoDescarte)).toEqual(['combustiveis_misturados', 'combustiveis_misturados', null]);
+		expect(r.intervalos.map(i => i.combustivel)).toEqual([null, null, 'etanol']);
+		expect(r.medicoes).toEqual([{ combustivel: 'etanol', trecho: null, km: 360, litros: 40, kmPorLitro: 9, intervalos: 1 }]);
+	});
+
+	it('propaga a mistura mesmo quando o intervalo da troca foi descartado por outro motivo', () => {
+		const r = calcularConsumoReal([
+			reg({ data: '2026-10-01', hodometroKm: 10000, litros: 40 }),
+			reg({ data: '2026-10-10', hodometroKm: 9900, litros: 40, combustivel: 'gasolina' }),
+			reg({ data: '2026-10-20', hodometroKm: 10400, litros: 40, combustivel: 'gasolina' }),
+			reg({ data: '2026-10-30', hodometroKm: 10880, litros: 40, combustivel: 'gasolina' }),
+		]);
+		expect(r.intervalos.map(i => i.motivoDescarte)).toEqual(['hodometro_inconsistente', 'combustiveis_misturados', null]);
+		expect(r.medicoes).toEqual([{ combustivel: 'gasolina', trecho: null, km: 480, litros: 40, kmPorLitro: 12, intervalos: 1 }]);
+	});
+
+	it('parcial de outro combustível antes do primeiro tanque cheio deixa a abertura misturada', () => {
+		const r = calcularConsumoReal([
+			reg({ data: '2026-09-28', hodometroKm: 9800, litros: 10, combustivel: 'gasolina', tanqueCheio: false }),
+			reg({ data: '2026-10-01', hodometroKm: 10000, litros: 40 }),
+			reg({ data: '2026-10-10', hodometroKm: 10400, litros: 40 }),
+		]);
+		expect(r.intervalos[0].motivoDescarte).toBe('combustiveis_misturados');
 	});
 
 	it('descarta o trecho em que o hodômetro volta: algum valor foi digitado errado e não dá para saber qual', () => {
