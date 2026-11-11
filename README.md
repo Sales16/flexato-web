@@ -47,12 +47,12 @@ O combustível com o menor `custo_km` vence. A ponderação é feita sobre o cus
 
 ## Stack
 
-| Camada            | Tecnologia                                                                     |
-| ----------------- | ------------------------------------------------------------------------------ |
-| Web (front + API) | [Next.js](https://nextjs.org/) com TypeScript                                  |
-| UI                | [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| Banco de dados    | PostgreSQL + PostGIS via [Supabase](https://supabase.com/)                     |
-| Autenticação      | Supabase Auth                                                                  |
+| Camada            | Tecnologia                                                            |
+| ----------------- | --------------------------------------------------------------------- |
+| Web (front + API) | [Next.js](https://nextjs.org/) 16 com TypeScript                      |
+| UI                | [Tailwind CSS](https://tailwindcss.com/) 4                            |
+| Banco de dados    | PostgreSQL via [Supabase](https://supabase.com/) (PostGIS na fatia 2) |
+| Autenticação      | Supabase Auth                                                         |
 
 ## Arquitetura
 
@@ -73,9 +73,59 @@ O combustível com o menor `custo_km` vence. A ponderação é feita sobre o cus
 
 Os valores do Inmetro vêm de testes padronizados e podem diferir do consumo no dia a dia. Os preços da ANP são médias semanais e podem variar entre postos. Por isso, o usuário sempre pode editar ambos.
 
+## API
+
+Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Bearer <access_token do Supabase>`.
+
+| Método         | Rota                                | Descrição                                                                     |
+| -------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
+| GET            | `/locais`                           | UFs e municípios com preço na semana mais recente                             |
+| GET            | `/precos?uf=SP&municipio=SAO PAULO` | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados  |
+| GET            | `/catalogo?q=onix&limite=50`        | Busca no catálogo de veículos                                                 |
+| POST           | `/calculo`                          | Calcula o combustível mais vantajoso                                          |
+| GET / POST     | `/carros`                           | Lista ou cria carros da garagem                                               |
+| PATCH / DELETE | `/carros/{id}`                      | Altera ou remove um carro da garagem                                          |
+| GET            | `/jobs/precos-anp`                  | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`) |
+
+Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
+
+## Como rodar
+
+Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dashboard).
+
+1. Instale as dependências: `npm install`.
+2. Copie `.env.example` para `.env.local` e preencha com os dados do projeto (Project Settings → API Keys). Gere um valor aleatório para `CRON_SECRET`.
+3. Aplique o schema e o seed. Escolha uma opção:
+   - Cole `supabase/migrations/20261111000000_schema_inicial.sql` e depois `supabase/seed.sql` no SQL Editor do Supabase.
+   - Ou use a CLI: `npx supabase link --project-ref <ref>`, `npx supabase db push` e rode o seed no SQL Editor.
+4. Em Authentication → URL Configuration, adicione `http://localhost:3000/carros` às Redirect URLs. Para entrar com Google ou Apple, habilite os provedores em Authentication → Providers. O login por link de e-mail funciona sem configuração extra.
+5. Rode `npm run dev` e importe os preços da semana:
+
+   ```bash
+   curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/v1/jobs/precos-anp
+   ```
+
+Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
+
+### Scripts
+
+| Script              | O que faz                                 |
+| ------------------- | ----------------------------------------- |
+| `npm run dev`       | Servidor de desenvolvimento               |
+| `npm run build`     | Build de produção                         |
+| `npm test`          | Testes (Vitest)                           |
+| `npm run typecheck` | Gera os tipos de rota e roda o TypeScript |
+| `npm run lint`      | ESLint                                    |
+| `npm run format`    | Prettier                                  |
+
 ## Status
 
-🚧 Em fase inicial: estrutura do repositório definida, sem código ainda.
+Fatia 1 implementada: calculadora, preços da ANP por cidade/UF, garagem com login e API para o app.
+
+Próximos passos (fatia 2):
+
+- Importar a tabela PBEV do Inmetro. Hoje o catálogo tem só valores de exemplo, marcados como `fonte = 'exemplo'`.
+- Localização automática com PostGIS e a malha municipal do IBGE.
 
 ## Licença
 
