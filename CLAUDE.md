@@ -40,13 +40,14 @@ Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:
   - `calculo.ts`: custo por km ponderado pelo percentual de cidade/estrada, razão limite do carro e economia.
   - `consumo-real.ts`: método tanque cheio a tanque cheio, considerando o combustível que estava no tanque na abertura do intervalo.
   - `anp/parser.ts`, `pbev/parser.ts` e `localizacao/malha.ts`: parsers dos importadores.
-  O que acessa banco ou rede fica em módulos com `import 'server-only'`.
+    O que acessa banco ou rede fica em módulos com `import 'server-only'`.
 - **Importadores**:
   - ANP: planilha XLSX semanal, abas `ESTADOS` e `MUNICIPIOS`. Nomes de município casados com o IBGE.
   - PBEV: PDF do Inmetro lido com `pdfjs-dist` pela posição x/y dos textos. Só entram versões flex.
   - Malha IBGE: GeoJSON gravado no PostGIS via RPC.
 
   `src/lib/http-externo.ts` concentra `buscar`, User-Agent, URL do IBGE e `emLotes`. `scripts/importar-malha.mts` roda no Node puro, então só importa de `src/lib` por caminho relativo com extensão `.ts` (o alias `@/` não resolve ali). `scripts/importar-pbev.ts` roda via `tsx --conditions=react-server` por causa do `server-only`.
+
 - **Preço por localidade**: `precos_municipio` com fallback para `precos_uf`, por combustível. `municipio_chave` é o nome da ANP normalizado (sem acento, maiúsculo, via `normalizarNome` em `src/lib/ufs.ts`), e `municipio_ibge` liga com `municipios_ibge` (localização automática).
 
 ## Banco (Supabase)
