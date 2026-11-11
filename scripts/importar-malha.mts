@@ -1,21 +1,11 @@
 import { parseArgs } from 'node:util';
 import { createClient } from '@supabase/supabase-js';
-import {
-	emLotes,
-	ehQualidadeMalha,
-	montarMunicipios,
-	urlMalhaMunicipal,
-	URL_MUNICIPIOS_IBGE,
-	type ColecaoMalha,
-	type MunicipioLocalidade,
-} from '../src/lib/localizacao/malha.ts';
+import { buscar, emLotes, URL_MUNICIPIOS_IBGE } from '../src/lib/http-externo.ts';
+import { ehQualidadeMalha, montarMunicipios, urlMalhaMunicipal, type ColecaoMalha, type MunicipioLocalidade } from '../src/lib/localizacao/malha.ts';
 
 const TAMANHO_LOTE = 100;
-const CABECALHOS = { 'User-Agent': 'Mozilla/5.0 (compatible; Flexato/1.0)' };
-
 async function baixar(url: string): Promise<{ texto: string; bytes: number }> {
-	const resposta = await fetch(url, { headers: CABECALHOS });
-	if (!resposta.ok) throw new Error(`Falha ao baixar ${url}: HTTP ${resposta.status}`);
+	const resposta = await buscar(url);
 	const buffer = Buffer.from(await resposta.arrayBuffer());
 	return { texto: buffer.toString('utf8'), bytes: buffer.length };
 }

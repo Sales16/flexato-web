@@ -1,8 +1,6 @@
 export const QUALIDADES_MALHA = ['minima', 'intermediaria', 'maxima'] as const;
 export type QualidadeMalha = (typeof QUALIDADES_MALHA)[number];
 
-export const URL_MUNICIPIOS_IBGE = 'https://servicodados.ibge.gov.br/api/v1/localidades/municipios?view=nivelado';
-
 type Posicao = number[];
 export type GeometriaMunicipio = { type: 'Polygon'; coordinates: Posicao[][] } | { type: 'MultiPolygon'; coordinates: Posicao[][][] };
 
@@ -74,11 +72,4 @@ export function montarMunicipios(malha: ColecaoMalha, localidades: MunicipioLoca
 
 	const semGeometria = localidades.map(m => m['municipio-id']).filter(c => !vistos.has(c));
 	return { municipios, semNome, semGeometria, invalidos };
-}
-
-export function emLotes<T>(itens: T[], tamanho: number): T[][] {
-	if (!Number.isInteger(tamanho) || tamanho < 1) throw new Error('O tamanho do lote deve ser um inteiro positivo.');
-	const lotes: T[][] = [];
-	for (let i = 0; i < itens.length; i += tamanho) lotes.push(itens.slice(i, i + tamanho));
-	return lotes;
 }
