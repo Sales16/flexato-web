@@ -257,7 +257,13 @@ function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ult
 				</div>
 				<div className="field">
 					<label htmlFor={`${prefixo}-combustivel`}>Combustível</label>
-					<select id={`${prefixo}-combustivel`} name="combustivel" className="entrada" defaultValue={ultimo?.combustivel ?? 'etanol'}>
+					<select
+						key={ultimo?.id ?? 'sem-registro'}
+						id={`${prefixo}-combustivel`}
+						name="combustivel"
+						className="entrada"
+						defaultValue={ultimo?.combustivel ?? 'etanol'}
+					>
 						<option value="etanol">Etanol</option>
 						<option value="gasolina">Gasolina</option>
 					</select>
