@@ -11,10 +11,12 @@ import { useAvisos } from '@/components/provedor-avisos';
 import { useSessao } from '@/components/provedor-sessao';
 import { CONSUMO_VAZIO, camposDeConsumo, consumoCompleto, consumoDeCampos, mesmoConsumo, type CamposConsumo } from './campos';
 import { LocalizacaoAutomatica } from './localizacao';
+import { BuscaCarro, type EscolhaCarro } from './busca-carro';
 import { BarraResultado, Resultado } from './resultado';
 
 export const CHAVE_CARRO_ESCOLHIDO = 'flexato:carro-escolhido';
 const CHAVE_LOCAL = 'flexato:local';
+const BUSCA_CARRO_INICIAL = 'onix';
 const ATALHOS_USO = [
 	{ rotulo: 'Cidade', valor: 100 },
 	{ rotulo: 'Ambos', valor: 50 },
@@ -60,7 +62,7 @@ export function Calculadora() {
 	const [precos, setPrecos] = useState<Record<Combustivel, string>>({ etanol: '', gasolina: '' });
 	const pedidoPrecos = useRef(0);
 
-	const [catalogo, setCatalogo] = useState<VeiculoCatalogoApi[]>([]);
+	const [veiculoCatalogo, setVeiculoCatalogo] = useState<VeiculoCatalogoApi | null>(null);
 	const [garagem, setGaragem] = useState<{ dono: string; itens: CarroApi[] } | null>(null);
 	const [selecao, setSelecao] = useState<Selecao>('outro');
 	const [campos, setCampos] = useState<CamposConsumo>(CONSUMO_VAZIO);
@@ -104,10 +106,10 @@ export function Calculadora() {
 
 	const aplicarCargaInicial = useEffectEvent(
 		(respostaLocais: PromiseSettledResult<LocaisApi>, respostaCatalogo: PromiseSettledResult<{ itens: VeiculoCatalogoApi[] }>) => {
-			if (respostaCatalogo.status === 'fulfilled') {
-				const itens = respostaCatalogo.value.itens;
-				setCatalogo(itens);
-				if (!lerArmazenado('sessao', CHAVE_CARRO_ESCOLHIDO) && itens[0]) aplicarSelecao(`cat:${itens[0].id}`, camposDeConsumo(itens[0].consumo));
+			const inicial = respostaCatalogo.status === 'fulfilled' ? respostaCatalogo.value.itens[0] : undefined;
+			if (inicial && !lerArmazenado('sessao', CHAVE_CARRO_ESCOLHIDO) && selecao === 'outro') {
+				setVeiculoCatalogo(inicial);
+				aplicarSelecao(`cat:${inicial.id}`, camposDeConsumo(inicial.consumo));
 			}
 
 			if (respostaLocais.status === 'fulfilled') {
@@ -136,7 +138,10 @@ export function Calculadora() {
 
 	useEffect(() => {
 		let ativo = true;
-		Promise.allSettled([chamarApi<LocaisApi>('/locais'), chamarApi<{ itens: VeiculoCatalogoApi[] }>('/catalogo?limite=200')]).then(([locais, catalogo]) => {
+		Promise.allSettled([
+			chamarApi<LocaisApi>('/locais'),
+			chamarApi<{ itens: VeiculoCatalogoApi[] }>(`/catalogo?${new URLSearchParams({ q: BUSCA_CARRO_INICIAL, limite: '1' })}`),
+		]).then(([locais, catalogo]) => {
 			if (ativo) aplicarCargaInicial(locais, catalogo);
 		});
 		return () => {
@@ -165,9 +170,10 @@ export function Calculadora() {
 		};
 	}, [usuarioId]);
 
-	const carroCatalogo = selecao.startsWith('cat:') ? catalogo.find(c => `cat:${c.id}` === selecao) : undefined;
+	const carroCatalogo = veiculoCatalogo && selecao === `cat:${veiculoCatalogo.id}` ? veiculoCatalogo : undefined;
 	const carroGaragem = selecao.startsWith('gar:') ? garagemVisivel.find(c => `gar:${c.id}` === selecao) : undefined;
-	const valorSelect: Selecao = carroCatalogo || carroGaragem ? selecao : 'outro';
+	const rotuloCarro =
+		carroGaragem?.nome ?? (carroCatalogo ? `${carroCatalogo.marca} ${carroCatalogo.modelo} ${carroCatalogo.versao}` : 'Outro carro (digitar consumos)');
 	const nomeCarro = carroGaragem?.nome ?? carroCatalogo?.modelo ?? 'carro';
 
 	const consumo = consumoDeCampos(campos);
@@ -178,13 +184,12 @@ export function Calculadora() {
 	const entrada = { consumo, precos: { etanol: precoEtanol, gasolina: precoGasolina }, percentualCidade, tanqueLitros: lerInteiro(tanque), kmPorMes };
 	const resultado = validarEntrada(entrada).length ? null : calcular(entrada);
 
-	function escolherCarro(valor: string) {
-		if (valor.startsWith('cat:')) {
-			const item = catalogo.find(c => `cat:${c.id}` === valor);
-			if (item) aplicarSelecao(`cat:${item.id}`, camposDeConsumo(item.consumo));
-		} else if (valor.startsWith('gar:')) {
-			const item = garagemVisivel.find(c => `gar:${c.id}` === valor);
-			if (item) aplicarSelecao(`gar:${item.id}`, camposDeConsumo(item.consumo));
+	function escolherCarro(escolha: EscolhaCarro) {
+		if (escolha.tipo === 'catalogo') {
+			setVeiculoCatalogo(escolha.carro);
+			aplicarSelecao(`cat:${escolha.carro.id}`, camposDeConsumo(escolha.carro.consumo));
+		} else if (escolha.tipo === 'garagem') {
+			aplicarSelecao(`gar:${escolha.carro.id}`, camposDeConsumo(escolha.carro.consumo));
 		} else {
 			aplicarSelecao('outro', CONSUMO_VAZIO);
 		}
@@ -283,13 +288,14 @@ export function Calculadora() {
 		dicaConsumo = consumoEditado ? 'Salve para usar estes valores no site e no app.' : 'Valores salvos na sua conta.';
 	} else if (carroCatalogo) {
 		const inmetro = carroCatalogo.fonte === 'inmetro';
+		const anoPbev = carroCatalogo.edicaoPbev?.match(/^\d{4}/)?.[0];
 		chipConsumo = consumoEditado
 			? { classe: 'chip edited', texto: 'Editado por você' }
-			: { classe: 'chip', texto: inmetro ? 'Inmetro PBEV' : 'Valor de exemplo' };
+			: { classe: 'chip', texto: inmetro ? `Inmetro PBEV${anoPbev ? ` ${anoPbev}` : ''}` : 'Valor de exemplo' };
 		dicaConsumo = consumoEditado
 			? 'O consumo real costuma ser diferente do teste. Seus valores valem para este cálculo.'
 			: inmetro
-				? 'Consumo do teste padronizado do Inmetro.'
+				? `Consumo do teste padronizado do Inmetro${carroCatalogo.edicaoPbev ? `, tabela PBEV ${carroCatalogo.edicaoPbev}` : ''}.`
 				: 'Valor de exemplo até a importação da tabela do Inmetro. Ajuste para o consumo do seu carro.';
 	}
 
@@ -339,30 +345,7 @@ export function Calculadora() {
 							<h2>Seu carro</h2>
 							<span className={chipConsumo.classe}>{chipConsumo.texto}</span>
 						</div>
-						<div className="field">
-							<label htmlFor="sel-carro">Modelo</label>
-							<select id="sel-carro" className="entrada" value={valorSelect} onChange={e => escolherCarro(e.target.value)}>
-								{garagemVisivel.length > 0 && (
-									<optgroup label="Minha garagem">
-										{garagemVisivel.map(c => (
-											<option key={c.id} value={`gar:${c.id}`}>
-												{c.nome}
-											</option>
-										))}
-									</optgroup>
-								)}
-								{catalogo.length > 0 && (
-									<optgroup label="Catálogo">
-										{catalogo.map(c => (
-											<option key={c.id} value={`cat:${c.id}`}>
-												{c.marca} {c.modelo} {c.versao}
-											</option>
-										))}
-									</optgroup>
-								)}
-								<option value="outro">Outro carro (digitar consumos)</option>
-							</select>
-						</div>
+						<BuscaCarro garagem={garagemVisivel} rotuloSelecionado={rotuloCarro} aoEscolher={escolherCarro} />
 						<div className="cons-table" role="group" aria-label="Consumo em km por litro">
 							<span />
 							<span className="col-h">Cidade</span>
