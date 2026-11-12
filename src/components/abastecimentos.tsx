@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { Combustivel } from '@/lib/calculo';
 import { chamarApi, mensagemDeErro } from '@/lib/api/cliente';
 import type { ConsumoMedido, MotivoDescarte, Trecho, TrechoMedido } from '@/lib/consumo-real';
+import { dataNoFuturo, hojeEmSaoPaulo } from '@/lib/data-local';
 import { lerDecimal, lerInteiro, numero, reais } from '@/lib/formato';
 import type { AbastecimentoApi, AbastecimentosApi, CarroApi } from '@/lib/tipos-api';
 import { useAvisos } from './provedor-avisos';
@@ -19,13 +20,6 @@ const MOTIVO: Record<MotivoDescarte, string> = {
 };
 
 type Carga = { carroId: string; dados: AbastecimentosApi | null; erro: string | null };
-
-const doisDigitos = (n: number) => String(n).padStart(2, '0');
-
-function hoje(): string {
-	const d = new Date();
-	return `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}`;
-}
 
 function dataCurta(iso: string): string {
 	const [a, m, d] = iso.split('-');
@@ -200,7 +194,7 @@ function Medicao({ carro, medicao: m, aoAlterarCarro }: { carro: CarroApi; medic
 
 function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ultimo: AbastecimentoApi | undefined; aoSalvar: () => void }) {
 	const avisar = useAvisos();
-	const [dataPadrao] = useState(hoje);
+	const [dataPadrao, setDataPadrao] = useState(() => hojeEmSaoPaulo());
 	const [salvando, setSalvando] = useState(false);
 	const [erro, setErro] = useState<string | null>(null);
 	const prefixo = `abast-${carroId}`;
@@ -216,8 +210,11 @@ function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ult
 		const textoPreco = String(campos.get('preco') ?? '').trim();
 		const precoLitro = textoPreco ? lerDecimal(textoPreco) : null;
 		const trecho = String(campos.get('trecho') ?? '');
+		const agora = new Date();
+		setDataPadrao(hojeEmSaoPaulo(agora));
 
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return setErro('Informe a data do abastecimento.');
+		if (dataNoFuturo(data, agora)) return setErro('A data do abastecimento não pode ser depois de hoje.');
 		if (!Number.isFinite(litros) || litros >= 1000) return setErro('Informe os litros abastecidos, por exemplo 38,5.');
 		if (!Number.isFinite(hodometroKm) || hodometroKm >= 10000000) return setErro('Informe o hodômetro em km, sem casas decimais.');
 		if (precoLitro !== null && (!Number.isFinite(precoLitro) || precoLitro >= 100))

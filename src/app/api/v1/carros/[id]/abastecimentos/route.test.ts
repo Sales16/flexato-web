@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { criarSupabaseFalso, type Resolvedor } from '@/lib/testes/supabase-falso';
 
 const estado = vi.hoisted(() => ({ falso: null as unknown as ReturnType<typeof criarSupabaseFalso> }));
@@ -167,6 +167,28 @@ describe('POST /api/v1/carros/{id}/abastecimentos', () => {
 		const resposta = await POST(requisicao('POST', valido), ctx());
 		expect(resposta.status).toBe(404);
 		expect(estado.falso.consultas.some(c => c.tabela === 'abastecimentos')).toBe(false);
+	});
+
+	describe('data do abastecimento', () => {
+		beforeEach(() => {
+			vi.useFakeTimers({ toFake: ['Date'] });
+			vi.setSystemTime(new Date('2026-10-11T02:00:00Z'));
+		});
+		afterEach(() => vi.useRealTimers());
+
+		it.each(['2026-10-10', '2026-10-11'])('aceita %s (hoje em São Paulo e a tolerância de fuso)', async data => {
+			const resposta = await POST(requisicao('POST', { ...valido, data }), ctx());
+			expect(resposta.status).toBe(201);
+			expect(estado.falso.consultas.find(c => c.tabela === 'abastecimentos')!.usou('insert')?.args[0]).toMatchObject({ data });
+		});
+
+		it.each(['2026-10-12', '2027-01-01'])('retorna 422 para data futura (%s)', async data => {
+			const resposta = await POST(requisicao('POST', { ...valido, data }), ctx());
+			expect(resposta.status).toBe(422);
+			const corpo = await resposta.json();
+			expect(corpo.erro.detalhes[0]).toMatch(/^data: não pode ser depois de hoje/);
+			expect(estado.falso.consultas).toHaveLength(0);
+		});
 	});
 });
 
