@@ -33,6 +33,7 @@ describe('chaveAoNavegar', () => {
 
 	it('trata item que saiu da lista como sem item ativo', () => {
 		expect(chaveAoNavegar(opcoes, 'cat-9', 1)).toBe('gar-1');
+		expect(chaveAoNavegar(opcoes, 'cat-9', -1)).toBe('outro');
 	});
 
 	it('devolve null com lista vazia', () => {
