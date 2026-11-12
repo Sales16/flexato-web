@@ -153,13 +153,15 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
 
 ### Configurações liga/desliga
 
-Três variáveis opcionais ligam ou desligam partes do sistema. Sem a variável, a parte fica habilitada; `false`, `0`, `nao`, `não` ou `off` desligam.
+Três variáveis opcionais ligam ou desligam partes do sistema. Sem a variável (ou vazia), a parte fica habilitada. `true`, `1`, `sim` ou `on` ligam; `false`, `0`, `nao`, `não` ou `off` desligam, sem diferenciar maiúsculas. Qualquer outro valor é recusado: o `npm run build` e o `npm run dev` falham com uma mensagem citando a variável, e a rota do job responde 500.
 
 | Variável                              | O que desliga                                                                                                                                                    |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_LOGIN_GOOGLE_HABILITADO` | Botão "Continuar com Google" na tela de login                                                                                                                    |
 | `NEXT_PUBLIC_LOGIN_APPLE_HABILITADO`  | Botão "Continuar com Apple" na tela de login                                                                                                                     |
 | `JOB_PRECOS_ANP_HABILITADO`           | Importação de preços da ANP: a rota do job ainda exige o `CRON_SECRET`, mas responde `{ "status": "desabilitado" }` sem importar nada, inclusive com `?forcar=1` |
+
+As flags de login só escondem o botão na tela de login. O provedor continua aceito pelo Supabase: qualquer cliente com a publishable key (o app, ou alguém chamando `supabase.auth.signInWithOAuth` pelo console do navegador) ainda consegue entrar com ele. Para bloquear de fato, desligue o provedor no Supabase em Authentication → Providers.
 
 As variáveis `NEXT_PUBLIC_*` são lidas no build: depois de mudar, reinicie o `npm run dev` ou faça um novo deploy. A do job é lida a cada chamada. O `.env.example` vem com os dois logins desligados, porque os provedores Google e Apple precisam ser configurados no Supabase antes.
 
