@@ -11,6 +11,7 @@ import { ehUf, UFS, type Uf } from '@/lib/ufs';
 import { useAvisos } from '@/components/provedor-avisos';
 import { useSessao } from '@/components/provedor-sessao';
 import { CONSUMO_VAZIO, camposDeConsumo, consumoCompleto, consumoDeCampos, mesmoConsumo, type CamposConsumo } from './campos';
+import { LocalizacaoAutomatica } from './localizacao';
 import { BuscaCarro, type EscolhaCarro } from './busca-carro';
 import { BarraResultado, Resultado } from './resultado';
 
@@ -307,9 +308,7 @@ export function Calculadora() {
 			<div className="calc-grid">
 				<form className="form-stack" onSubmit={e => e.preventDefault()} autoComplete="off">
 					<div className="panel">
-						<div className="panel-head">
-							<h2>Onde você vai abastecer</h2>
-						</div>
+						<LocalizacaoAutomatica aoConfirmar={trocarLocal} idCidade="sel-municipio" />
 						<div className="campos-2">
 							<div className="field">
 								<label htmlFor="sel-uf">Estado</label>

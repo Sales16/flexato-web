@@ -1,13 +1,12 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { buscar, emLotes, URL_MUNICIPIOS_IBGE } from '@/lib/http-externo';
 import { chaveComparacao, nomeLegivel } from './municipios';
 import { lerAbaEstados, lerAbaMunicipios, urlResumoMaisRecente } from './parser';
 import { lerAbas } from './planilha';
 
 export const PAGINA_ANP =
 	'https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas';
-const API_MUNICIPIOS_IBGE = 'https://servicodados.ibge.gov.br/api/v1/localidades/municipios?view=nivelado';
-const CABECALHOS = { 'User-Agent': 'Mozilla/5.0 (compatible; Flexato/1.0)' };
 const TAMANHO_LOTE = 500;
 
 export type ResultadoImportacao =
@@ -16,19 +15,9 @@ export type ResultadoImportacao =
 
 type MunicipioIbge = { id: number; nome: string };
 
-async function buscar(url: string): Promise<Response> {
-	const resposta = await fetch(url, { headers: CABECALHOS, cache: 'no-store' });
-	if (!resposta.ok) throw new Error(`Falha ao baixar ${url}: HTTP ${resposta.status}`);
-	return resposta;
-}
-
 async function municipiosIbge(): Promise<Map<string, MunicipioIbge>> {
-	const lista = (await (await buscar(API_MUNICIPIOS_IBGE)).json()) as { 'municipio-id': number; 'municipio-nome': string; 'UF-sigla': string }[];
+	const lista = (await (await buscar(URL_MUNICIPIOS_IBGE)).json()) as { 'municipio-id': number; 'municipio-nome': string; 'UF-sigla': string }[];
 	return new Map(lista.map(m => [chaveComparacao(m['UF-sigla'], m['municipio-nome']), { id: m['municipio-id'], nome: m['municipio-nome'] }]));
-}
-
-async function emLotes<T>(itens: T[], acao: (lote: T[]) => Promise<void>) {
-	for (let i = 0; i < itens.length; i += TAMANHO_LOTE) await acao(itens.slice(i, i + TAMANHO_LOTE));
 }
 
 export async function importarPrecosAnp(supabase: SupabaseClient, opcoes: { forcar?: boolean } = {}): Promise<ResultadoImportacao> {
@@ -52,7 +41,7 @@ export async function importarPrecosAnp(supabase: SupabaseClient, opcoes: { forc
 	const ibge = await municipiosIbge();
 	let municipiosSemIbge = 0;
 
-	await emLotes(estados, async lote => {
+	for (const lote of emLotes(estados, TAMANHO_LOTE)) {
 		const { error } = await supabase.from('precos_uf').upsert(
 			lote.map(p => ({
 				semana_fim: p.semanaFim,
@@ -67,7 +56,7 @@ export async function importarPrecosAnp(supabase: SupabaseClient, opcoes: { forc
 			{ onConflict: 'semana_fim,uf,produto' }
 		);
 		if (error) throw error;
-	});
+	}
 
 	const linhasMunicipio = municipios.map(p => {
 		const oficial = ibge.get(chaveComparacao(p.uf, p.municipioChave));
@@ -87,10 +76,10 @@ export async function importarPrecosAnp(supabase: SupabaseClient, opcoes: { forc
 		};
 	});
 
-	await emLotes(linhasMunicipio, async lote => {
+	for (const lote of emLotes(linhasMunicipio, TAMANHO_LOTE)) {
 		const { error } = await supabase.from('precos_municipio').upsert(lote, { onConflict: 'semana_fim,uf,municipio_chave,produto' });
 		if (error) throw error;
-	});
+	}
 
 	const { error } = await supabase
 		.from('importacoes_precos')

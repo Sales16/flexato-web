@@ -46,3 +46,7 @@ export type CarroApi = {
 	criadoEm: string;
 	atualizadoEm: string;
 };
+
+export type MunicipioLocalizadoApi = { ibge: number; nome: string; chave: string | null };
+
+export type LocalizacaoApi = { uf: Uf; semana: Semana | null; municipio: MunicipioLocalizadoApi };

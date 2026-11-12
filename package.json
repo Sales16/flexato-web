@@ -12,6 +12,7 @@
 		"test:watch": "vitest",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
+		"importar:malha": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/importar-malha.mts",
 		"importar:pbev": "tsx --conditions=react-server scripts/importar-pbev.ts"
 	},
 	"dependencies": {

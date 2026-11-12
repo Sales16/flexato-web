@@ -326,6 +326,25 @@
 		color: var(--etanol);
 	}
 
+	.consent {
+		border: 1px dashed color-mix(in srgb, var(--ink) 25%, var(--line));
+		background: var(--surface-2);
+		border-radius: 12px;
+		padding: 12px 14px;
+		display: grid;
+		gap: 10px;
+		font-size: 14px;
+	}
+	.consent:focus {
+		outline: none;
+	}
+	.consent b {
+		font-weight: 650;
+	}
+	.consent .erro {
+		color: var(--danger-ink);
+	}
+
 	.cons-table {
 		display: grid;
 		grid-template-columns: auto 1fr 1fr;
