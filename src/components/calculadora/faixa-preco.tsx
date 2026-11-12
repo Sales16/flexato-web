@@ -1,11 +1,13 @@
+import { posicaoNaFaixa } from '@/lib/faixa-preco';
 import { reais } from '@/lib/formato';
 import type { PrecoCombustivelApi } from '@/lib/tipos-api';
 
 export function FaixaPreco({ preco, atual }: { preco: PrecoCombustivelApi | undefined; atual: number }) {
 	if (!preco || preco.precoMin === null || preco.precoMax === null || preco.precoMax <= preco.precoMin) return null;
 	const { precoMin, precoMax, precoMedio } = preco;
-	const posicao = (v: number) => `${Math.min(100, Math.max(0, ((v - precoMin) / (precoMax - precoMin)) * 100))}%`;
+	const posicao = (v: number) => `${posicaoNaFaixa(v, precoMin, precoMax).percentual}%`;
 	const local = preco.fonte === 'municipio' ? 'na cidade' : 'no estado';
+	const fora = Number.isFinite(atual) ? posicaoNaFaixa(atual, precoMin, precoMax).fora : null;
 
 	return (
 		<div className="faixa">
@@ -19,6 +21,11 @@ export function FaixaPreco({ preco, atual }: { preco: PrecoCombustivelApi | unde
 				<span>méd {reais(precoMedio)}</span>
 				<span>máx {reais(precoMax)}</span>
 			</p>
+			{fora && (
+				<p className="faixa-aviso">
+					Seu preço está {fora === 'abaixo' ? 'abaixo do menor' : 'acima do maior'} preço pesquisado pela ANP {local}.
+				</p>
+			)}
 		</div>
 	);
 }

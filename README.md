@@ -92,19 +92,19 @@ Os valores do Inmetro vêm de testes padronizados e podem diferir do consumo no 
 
 Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Bearer <access_token do Supabase>`.
 
-| Método         | Rota                                                     | Descrição                                                                                                           |
-| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| GET            | `/locais`                                                | UFs e municípios com preço na semana mais recente                                                                   |
-| GET            | `/localizacao?lat=-23.55&lng=-46.63`                     | Município e UF do ponto (malha do IBGE) e a chave da ANP quando a cidade tem preço                                  |
-| GET            | `/precos?uf=SP&municipio=SAO PAULO`                      | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados                                        |
-| GET            | `/precos/historico?uf=SP&municipio=SAO PAULO&semanas=12` | Séries semanais de etanol e gasolina (1 a 104 semanas, padrão 12), com a UF quando a cidade não tem dados na semana |
-| GET            | `/catalogo?q=onix&limite=50`                             | Busca no catálogo de veículos                                                                                       |
-| POST           | `/calculo`                                               | Calcula o combustível mais vantajoso                                                                                |
-| GET / POST     | `/carros`                                                | Lista ou cria carros da garagem                                                                                     |
-| PATCH / DELETE | `/carros/{id}`                                           | Altera ou remove um carro da garagem                                                                                |
-| GET / POST     | `/carros/{id}/abastecimentos`                            | Lista (com o consumo real medido) ou registra abastecimentos do carro                                               |
-| DELETE         | `/carros/{id}/abastecimentos/{abastecimentoId}`          | Remove um abastecimento                                                                                             |
-| GET            | `/jobs/precos-anp`                                       | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`)                                       |
+| Método         | Rota                                                     | Descrição                                                                                                                                   |
+| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET            | `/locais`                                                | UFs e municípios com preço na semana mais recente                                                                                           |
+| GET            | `/localizacao?lat=-23.55&lng=-46.63`                     | Município e UF do ponto (malha do IBGE), a semana mais recente da ANP (ou `null` sem importação) e a chave da ANP quando a cidade tem preço |
+| GET            | `/precos?uf=SP&municipio=SAO PAULO`                      | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados                                                                |
+| GET            | `/precos/historico?uf=SP&municipio=SAO PAULO&semanas=12` | Séries semanais de etanol e gasolina (1 a 104 semanas, padrão 12), com a UF quando a cidade não tem dados na semana                         |
+| GET            | `/catalogo?q=onix&limite=50`                             | Busca no catálogo de veículos                                                                                                               |
+| POST           | `/calculo`                                               | Calcula o combustível mais vantajoso                                                                                                        |
+| GET / POST     | `/carros`                                                | Lista ou cria carros da garagem                                                                                                             |
+| PATCH / DELETE | `/carros/{id}`                                           | Altera (nome, os quatro consumos ou só um deles com `consumoTrecho`) ou remove um carro da garagem                                          |
+| GET / POST     | `/carros/{id}/abastecimentos`                            | Lista (com o consumo real medido) ou registra abastecimentos do carro                                                                       |
+| DELETE         | `/carros/{id}/abastecimentos/{abastecimentoId}`          | Remove um abastecimento                                                                                                                     |
+| GET            | `/jobs/precos-anp`                                       | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`)                                                               |
 
 Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
 
@@ -114,13 +114,15 @@ Cada IP pode fazer até **120 leituras por minuto** (`/locais`, `/localizacao`, 
 
 A contagem fica na memória de cada instância do servidor. Na Vercel, cada instância serverless conta separadamente e zera quando é reciclada. Por isso o limite segura rajadas de um mesmo cliente, mas não garante uma cota global exata. Para um limite global, há duas opções sem mudar o contrato da API: as regras de rate limit do Firewall da Vercel (confira a disponibilidade no seu plano) ou trocar o armazenamento de `src/lib/api/limite.ts` por um compartilhado, como Redis ou uma tabela no Postgres.
 
+O IP do cliente vem de `x-real-ip` ou, na falta dele, do primeiro valor de `x-forwarded-for`. Isso pressupõe um proxy confiável na frente da aplicação (a Vercel, no deploy deste projeto) que sobrescreva esses headers com o IP real. Sem esse proxy, por exemplo com `next start` exposto direto, o próprio cliente define os headers e pode trocar de "IP" a cada requisição para escapar do limite.
+
 ## Como rodar
 
 Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dashboard).
 
 1. Instale as dependências: `npm install`.
 2. Copie `.env.example` para `.env.local` e preencha com os dados do projeto (Project Settings → API Keys). Gere um valor aleatório para `CRON_SECRET`.
-3. Aplique o schema e o seed. Escolha uma opção:
+3. Aplique o schema e o seed (só para um projeto Supabase próprio/novo; no projeto deste repositório as migrations de `supabase/migrations/` entram pela integração com o GitHub quando chegam na `main`, então não aplique à mão). Escolha uma opção:
    - Cole no SQL Editor do Supabase, nesta ordem: `supabase/migrations/20261111000000_schema_inicial.sql`, `supabase/migrations/20261112000000_busca_catalogo_sem_acento.sql`, `supabase/migrations/20261113000000_localizacao_municipios.sql`, `supabase/migrations/20261114000000_abastecimentos.sql` e `supabase/seed.sql`.
    - Ou use a CLI: `npx supabase link --project-ref <ref>`, `npx supabase db push` e rode o seed no SQL Editor.
 4. Importe a malha municipal do IBGE (usada pela localização automática):
@@ -131,7 +133,7 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
 
    A migration `20261113000000_localizacao_municipios.sql` já habilita o PostGIS no schema `extensions` (`create extension if not exists postgis with schema extensions`). Se o SQL Editor recusar, habilite em Database → Extensions → postgis, escolhendo o schema `extensions`, e rode a migration de novo.
 
-   O script baixa a malha da [API de malhas do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=4) em qualidade intermediária (cerca de 14 MB, 5.571 municípios), junta com nome e UF da API de localidades e grava em lotes na tabela `municipios_ibge` usando `SUPABASE_SECRET_KEY` do `.env.local`. No banco, a tabela ocupa cerca de 11 MB. Opções: `--qualidade=minima` (cerca de 4 MB, fronteiras menos precisas) e `--simular` (baixa e valida sem gravar). Pode rodar de novo quando o IBGE atualizar a malha: os municípios existentes são atualizados.
+   O script baixa a malha da [API de malhas do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=4) em qualidade intermediária (cerca de 14 MB, 5.571 municípios), junta com nome e UF da API de localidades e grava em lotes na tabela `municipios_ibge` usando `SUPABASE_SECRET_KEY` do `.env.local`. No banco, a tabela ocupa cerca de 11 MB. Opções: `--qualidade=minima` (cerca de 4 MB, fronteiras menos precisas), `--simular` (baixa e valida sem gravar) e `--forcar` (grava mesmo se a malha vier com menos de 5.500 municípios; sem ela, o script aborta). Pode rodar de novo quando o IBGE atualizar a malha: os municípios existentes são atualizados.
 
 5. Em Authentication → URL Configuration, adicione `http://localhost:3000/carros` às Redirect URLs. Para entrar com Google ou Apple, habilite os provedores em Authentication → Providers. O login por link de e-mail funciona sem configuração extra.
 6. Rode `npm run dev` e importe os preços da semana:
@@ -147,7 +149,7 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
    npm run importar:pbev                # grava as versões flex com fonte 'inmetro' e remove os valores de exemplo
    ```
 
-   O script acha o PDF mais recente na página do PBE Veicular. Para outra edição, use `--url=<link do PDF>` ou `--arquivo=<caminho local>`. Só entram carros flex com consumo de cidade e estrada em etanol e gasolina; a versão inclui motor e transmissão. Rode de novo sempre que o Inmetro publicar uma tabela nova: as versões existentes são atualizadas e as de edições anteriores continuam no catálogo. Os valores de exemplo só são removidos depois que a importação grava tudo com sucesso.
+   O script acha o PDF mais recente na página do PBE Veicular. Para outra edição, use `--url=<link do PDF>` ou `--arquivo=<caminho local>`. Só entram carros flex com consumo de cidade e estrada em etanol e gasolina; a versão inclui motor e transmissão. Rode de novo sempre que o Inmetro publicar uma tabela nova: as versões existentes são atualizadas e as de edições anteriores continuam no catálogo. Os valores de exemplo só são removidos depois que a importação grava tudo com sucesso. Se o número de linhas flex lidas for diferente do declarado no resumo do PDF, a importação é cancelada sem gravar nada (provável mudança de layout); confira com `--simular` e, se estiver certo, rode com `--forcar`.
 
 Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
 
@@ -222,9 +224,9 @@ Fatia 2 implementada: importador da tabela PBEV do Inmetro (`npm run importar:pb
 
 Fatia 3 implementada: CI no GitHub Actions, testes das rotas com banco simulado, limite de requisições por IP, headers de segurança, ajustes de layout no celular e guia de deploy na Vercel.
 
-Fatia 4 implementada: localização automática. O navegador pede permissão, a posição (arredondada para 4 casas) vai só para `/api/v1/localizacao`, que encontra o município no PostGIS e não grava nada.
+Fatia 4 implementada: localização automática. O navegador pede permissão, a posição, arredondada para 3 casas decimais (cerca de 110 m), vai só para `/api/v1/localizacao`, que encontra o município no PostGIS. A rota não grava a posição no banco, mas ela segue na query string e pode aparecer nos logs de acesso da hospedagem.
 
-Fatia 6 implementada: edição de carro, abastecimentos com consumo real, faixa de preço da semana e histórico de preços. A migration `20261114000000_abastecimentos.sql` precisa ser aplicada no Supabase.
+Fatia 6 implementada: edição de carro, abastecimentos com consumo real, faixa de preço da semana e histórico de preços. Inclui a migration `20261114000000_abastecimentos.sql`.
 
 ## Licença
 

@@ -242,6 +242,10 @@ export function lerTabelaPbev(paginas: ItemPdf[][]): TabelaPbev {
 	return { edicao, flexDeclarados: flexDeclarados(todos), linhasFlex, veiculos: [...veiculos.values()], semConsumo, duplicadas, conflitantes };
 }
 
+export function contagemDivergente(tabela: Pick<TabelaPbev, 'flexDeclarados' | 'linhasFlex'>): boolean {
+	return tabela.flexDeclarados !== null && tabela.flexDeclarados !== tabela.linhasFlex;
+}
+
 export function urlTabelaMaisRecente(html: string, paginaUrl: string): string {
 	const candidatos: { ano: number; ordem: number; url: string; download: string }[] = [];
 	let ordem = 0;

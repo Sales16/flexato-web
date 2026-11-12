@@ -63,6 +63,9 @@ export async function alterarCarro(supabase: SupabaseClient, id: string, alterac
 		.update({
 			...(alteracao.nome !== undefined ? { nome: alteracao.nome } : {}),
 			...(alteracao.consumo ? colunasConsumo(alteracao.consumo) : {}),
+			...(alteracao.consumoTrecho
+				? { [`${alteracao.consumoTrecho.combustivel}_${alteracao.consumoTrecho.trecho}`]: alteracao.consumoTrecho.kmPorLitro }
+				: {}),
 		})
 		.eq('id', id)
 		.select(COLUNAS)

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dataNoFuturo } from '@/lib/data-local';
 
 const kmPorLitro = z.number().positive('deve ser maior que zero').max(99.9, 'deve ser menor que 100');
 const kmPorLitroOpcional = z.number().positive('deve ser maior que zero').max(99.9, 'deve ser menor que 100').nullable().optional();
@@ -18,8 +19,16 @@ export const carroAlterarSchema = z
 	.object({
 		nome: z.string().trim().min(1, 'informe um nome').max(60, 'use até 60 caracteres').optional(),
 		consumo: consumoSchema.optional(),
+		consumoTrecho: z
+			.object({
+				combustivel: z.enum(['etanol', 'gasolina'], 'use etanol ou gasolina'),
+				trecho: z.enum(['cidade', 'estrada'], 'use cidade ou estrada'),
+				kmPorLitro,
+			})
+			.optional(),
 	})
-	.refine(v => v.nome !== undefined || v.consumo !== undefined, 'envie nome ou consumo');
+	.refine(v => v.nome !== undefined || v.consumo !== undefined || v.consumoTrecho !== undefined, 'envie nome, consumo ou consumoTrecho')
+	.refine(v => v.consumo === undefined || v.consumoTrecho === undefined, 'envie consumo ou consumoTrecho, não os dois');
 
 export const calculoSchema = z.object({
 	consumo: z.object({
@@ -39,7 +48,7 @@ export type CarroCriar = z.infer<typeof carroCriarSchema>;
 export type CarroAlterar = z.infer<typeof carroAlterarSchema>;
 
 export const abastecimentoCriarSchema = z.object({
-	data: z.iso.date('use o formato AAAA-MM-DD'),
+	data: z.iso.date('use o formato AAAA-MM-DD').refine(d => !dataNoFuturo(d, new Date(), 1), 'não pode ser depois de hoje'),
 	combustivel: z.enum(['etanol', 'gasolina'], 'use etanol ou gasolina'),
 	litros: z.number().positive('deve ser maior que zero').max(999.99, 'deve ser menor que 1000'),
 	hodometroKm: z.number().int('use um número inteiro de km').min(0, 'não pode ser negativo').max(9999999, 'deve ser menor que 10.000.000'),
