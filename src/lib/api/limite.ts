@@ -9,7 +9,7 @@ const MAXIMO_CHAVES = 10_000;
 
 type Janela = { expira: number; contagem: number };
 
-export function criarLimitador(agora: () => number = Date.now, maximoChaves = MAXIMO_CHAVES) {
+export function criarLimitador(agora: () => number = () => Date.now(), maximoChaves = MAXIMO_CHAVES) {
 	const janelas = new Map<string, Janela>();
 
 	function abrirEspaco(momento: number) {
@@ -31,7 +31,7 @@ export function criarLimitador(agora: () => number = Date.now, maximoChaves = MA
 			janelas.set(chave, janela);
 		}
 		janela.contagem++;
-		return janela.contagem > regra.limite ? Math.max(1, Math.ceil((janela.expira - momento) / 1000)) : null;
+		return janela.contagem > regra.limite ? Math.ceil((janela.expira - momento) / 1000) : null;
 	};
 }
 
