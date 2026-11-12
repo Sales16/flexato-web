@@ -27,7 +27,7 @@ npm run importar:pbev -- --simular   # catálogo PBEV do Inmetro; sem --simular 
 npm run importar:malha -- --simular  # malha municipal do IBGE; sem --simular grava no Supabase
 ```
 
-O CI (`.github/workflows/ci.yml`) roda lint, typecheck, testes, `format:check` e build em todo push e PR. Rode os mesmos antes de commitar.
+O CI (`.github/workflows/ci.yml`) roda lint, typecheck, testes, `format:check` e build em todo PR e no push da `main`. As actions são fixadas por SHA. Rode os mesmos antes de commitar.
 
 Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/v1/jobs/precos-anp` (idempotente por semana; `?forcar=1` reimporta). Na Vercel, o `vercel.json` agenda o job diariamente.
 
@@ -36,7 +36,7 @@ Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:
 - **Next.js 16 com Cache Components e Partial Prefetching** (`next.config.ts`). As páginas (`/`, `/carros`, `/entrar`) são shells estáticos com client components. Todo dado chega via `fetch` para `/api/v1` (`src/lib/api/cliente.ts`). A web usa exatamente o mesmo contrato que o app mobile.
 - **API** em `src/app/api/v1/**/route.ts`. As rotas são finas: validam com zod (`src/lib/esquemas.ts`), chamam `src/lib/dados/*` e respondem com os helpers de `src/lib/api/respostas.ts`. Os erros seguem sempre `{ erro: { codigo, mensagem, detalhes? } }`. Os tipos de resposta ficam em `src/lib/tipos-api.ts`.
 - **Padrão de cada handler**: primeiro `limitar(request, LEITURA | ESCRITA)` (`src/lib/api/limite.ts`), depois um `try` envolvendo autenticação e dados, com `erroInterno(e)` no `catch`. Leia `request.headers`/`searchParams` antes de qualquer `try`. Com Cache Components, o acesso ao request interrompe o prerender lançando uma exceção; se ela for capturada pelo `try`, o build registra um erro interno falso.
-- **Autenticação**: Supabase Auth no cliente (`src/lib/supabase/navegador.ts`, PKCE, sessão no browser). A API aceita só `Authorization: Bearer <access_token>` (`src/lib/api/autenticacao.ts`) e cria um cliente Supabase com o token do usuário, de modo que o RLS do Postgres faz a autorização. Não há sessão por cookie no servidor.
+- **Autenticação**: Supabase Auth no cliente (`src/lib/supabase/navegador.ts`, PKCE, sessão no browser). A API aceita só `Authorization: Bearer <access_token>` (`src/lib/api/autenticacao.ts`) e cria um cliente Supabase com o token do usuário, de modo que o RLS do Postgres faz a autorização. Não há sessão por cookie no servidor. `autenticar` devolve `null` para token ausente ou inválido (a rota responde 401) e lança o erro quando o Auth do Supabase está indisponível, para o `catch` do handler responder 500. Por isso ela fica dentro do `try`.
 - **Três clientes Supabase no servidor** (`src/lib/supabase/servidor.ts`): `clientePublico` (publishable key, leitura de dados públicos), `clienteDoUsuario(token)` (garagem e abastecimentos) e `clienteAdmin` (secret key, usado só pelo job da ANP, pelo importador PBEV e pela RPC de localização). O importador da malha cria o próprio cliente com `SUPABASE_SECRET_KEY`, porque roda no Node puro e não pode importar módulo `server-only`.
 - **Regra de negócio em módulos puros e testados**, sem `server-only`, para poder ser reaproveitada pelo app:
   - `calculo.ts`: custo por km ponderado pelo percentual de cidade/estrada, razão limite do carro e economia.
@@ -48,7 +48,7 @@ Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:
   - PBEV: PDF do Inmetro lido com `pdfjs-dist` pela posição x/y dos textos. Só entram versões flex.
   - Malha IBGE: GeoJSON gravado no PostGIS via RPC.
 
-  `src/lib/http-externo.ts` concentra `buscar`, User-Agent, URL do IBGE e `emLotes`. `scripts/importar-malha.mts` roda no Node puro, então só importa de `src/lib` por caminho relativo com extensão `.ts` (o alias `@/` não resolve ali). `scripts/importar-pbev.ts` roda via `tsx --conditions=react-server` por causa do `server-only`.
+  `src/lib/http-externo.ts` concentra `buscar` (User-Agent e tempo limite de 60 s, ajustável por chamada, como no download da malha), URL do IBGE e `emLotes`. `scripts/importar-malha.mts` roda no Node puro, então só importa de `src/lib` por caminho relativo com extensão `.ts` (o alias `@/` não resolve ali). `scripts/importar-pbev.ts` roda via `tsx --conditions=react-server` por causa do `server-only`.
 
 - **Preço por localidade**: `precos_municipio` com fallback para `precos_uf`, por combustível. `municipio_chave` é o nome da ANP normalizado (sem acento, maiúsculo, via `normalizarNome` em `src/lib/ufs.ts`), e `municipio_ibge` liga com `municipios_ibge` (localização automática).
 
@@ -64,7 +64,7 @@ Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:
   - Tabela interna: `revoke all ... from anon, authenticated` e grant só para `service_role` (ex.: `municipios_ibge`).
   - Função nova: o Postgres dá `execute` a `public` por padrão. Faça `revoke execute on function ... from public, anon, authenticated` e depois `grant execute` só para quem chama (ex.: `municipio_por_ponto`, `importar_municipios_ibge`).
 - `supabase/seed.sql` tem 8 carros com `fonte = 'exemplo'`, que somem quando a PBEV é importada.
-- Variáveis de ambiente (`.env.example`, valores em `.env.local`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` e `CRON_SECRET`. A leitura é centralizada em getters de `src/lib/env.ts`. Fora dele, só `src/lib/supabase/navegador.ts` (lê `NEXT_PUBLIC_*` no browser) e `scripts/importar-malha.mts` (Node puro) leem `process.env` direto. Ao adicionar uma variável, crie o getter em `src/lib/env.ts` e atualize o `.env.example`. Node ≥ 24 (`engines` do `package.json`).
+- Variáveis de ambiente (`.env.example`, valores em `.env.local`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` e `CRON_SECRET`. A leitura é centralizada em getters de `src/lib/env.ts`. Fora dele, só `src/lib/supabase/navegador.ts` (lê `NEXT_PUBLIC_*` no browser) e `scripts/importar-malha.mts` (Node puro) leem `process.env` direto. Ao adicionar uma variável, crie o getter em `src/lib/env.ts` e atualize o `.env.example`. O `next.config.ts` monta a CSP com a origem de `NEXT_PUBLIC_SUPABASE_URL` e falha o build quando `VERCEL_ENV=production` e essa URL está ausente ou inválida. Node ≥ 24 (`engines` do `package.json`).
 
 ## Front-end
 
@@ -76,7 +76,7 @@ Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:
 
 - Vitest em ambiente `node`, só `src/**/*.test.ts`. Não há testes de componente. Lógica de UI que precisa de teste vai para um módulo puro (ex.: `src/lib/navegacao-combo.ts`, `src/lib/grafico.ts`).
 - Testes de rota importam o handler e chamam com `Request`/`NextRequest`. Mocke `server-only` (`vi.mock('server-only', () => ({}))`) e `@/lib/supabase/servidor` ou `@/lib/dados/*`. Para cadeias do query builder do Supabase, use `src/lib/testes/supabase-falso.ts`. Nunca acesse rede nos testes.
-- O limitador de requisições é um singleton do módulo e conta por IP. Em testes que repetem muitas chamadas, use um `x-forwarded-for` próprio para não esbarrar no limite.
+- O limitador de requisições é um singleton do módulo e conta por IP. Nos testes de rota, mande um `x-forwarded-for` único por requisição (`randomUUID()`) para não acumular chamadas no bucket `desconhecido`. `src/app/api/v1/limite-rotas.test.ts` confere que todo handler chama `limitar` com a regra certa: ao criar uma rota, inclua-a nesse teste.
 
 ## Convenções
 
