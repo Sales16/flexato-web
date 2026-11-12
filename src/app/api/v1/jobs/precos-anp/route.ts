@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
 	const forcar = request.nextUrl.searchParams.get('forcar') === '1';
 	try {
 		if (!autorizado(token)) return erro(401, 'nao_autorizado', 'Token do job inválido.');
-		if (!jobPrecosAnpHabilitado()) return Response.json({ status: 'desabilitado' });
+		if (!jobPrecosAnpHabilitado()) {
+			console.warn('job precos-anp desabilitado por JOB_PRECOS_ANP_HABILITADO');
+			return Response.json({ status: 'desabilitado' });
+		}
 		const resultado = await importarPrecosAnp(clienteAdmin(), { forcar });
 		return Response.json(resultado);
 	} catch (e) {

@@ -19,6 +19,7 @@ function requisicao(token: string | null, consulta = '') {
 beforeEach(() => {
 	vi.resetAllMocks();
 	vi.spyOn(console, 'error').mockImplementation(() => {});
+	vi.spyOn(console, 'warn').mockImplementation(() => {});
 	vi.mocked(clienteAdmin).mockReturnValue(admin as never);
 	vi.stubEnv('CRON_SECRET', SEGREDO);
 });
@@ -71,6 +72,12 @@ describe('GET /api/v1/jobs/precos-anp', () => {
 		expect(resposta.status).toBe(200);
 		expect(await resposta.json()).toEqual({ status: 'desabilitado' });
 		expect(importarPrecosAnp).not.toHaveBeenCalled();
+	});
+
+	it('avisa no log quando o job está desabilitado', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'false');
+		await GET(requisicao(SEGREDO));
+		expect(console.warn).toHaveBeenCalledWith('job precos-anp desabilitado por JOB_PRECOS_ANP_HABILITADO');
 	});
 
 	it('retorna 500 sem importar quando JOB_PRECOS_ANP_HABILITADO tem valor desconhecido', async () => {
