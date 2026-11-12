@@ -1,3 +1,4 @@
+import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
@@ -64,11 +65,19 @@ describe('GET /api/v1/carros', () => {
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
 	});
 
-	it('retorna 500 no formato padrão quando a autenticação falha', async () => {
-		getUser.mockRejectedValue(new Error('rede'));
+	it('retorna 500 no formato padrão quando o Auth do Supabase está indisponível', async () => {
+		getUser.mockResolvedValue({ data: { user: null }, error: new AuthRetryableFetchError('Service Unavailable', 503) });
 		const resposta = await GET(requisicao('GET'));
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		expect(listarCarros).not.toHaveBeenCalled();
+	});
+
+	it('retorna 401 quando o Auth do Supabase recusa o token', async () => {
+		getUser.mockResolvedValue({ data: { user: null }, error: new AuthApiError('invalid JWT', 401, 'bad_jwt') });
+		const resposta = await GET(requisicao('GET'));
+		expect(resposta.status).toBe(401);
+		expect((await resposta.json()).erro.codigo).toBe('nao_autenticado');
 	});
 
 	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
