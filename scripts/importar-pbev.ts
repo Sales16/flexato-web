@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
+import { carregarEnvOpcional } from '@/lib/env-arquivo';
 import { gravarCatalogoPbev, lerPbev, urlPbevMaisRecente, type OrigemPbev } from '@/lib/pbev/importar';
 import { contagemDivergente } from '@/lib/pbev/parser';
 import { clienteAdmin } from '@/lib/supabase/servidor';
@@ -10,9 +11,7 @@ function argumento(nome: string): string | undefined {
 }
 
 async function main() {
-	try {
-		process.loadEnvFile('.env.local');
-	} catch {}
+	carregarEnvOpcional('.env.local');
 
 	const simular = process.argv.includes('--simular');
 	const caminho = argumento('arquivo');
