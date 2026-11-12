@@ -1,5 +1,5 @@
 import 'server-only';
-import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { isAuthRetryableFetchError, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { clienteDoUsuario } from '@/lib/supabase/servidor';
 
 export type Autenticado = { usuario: User; supabase: SupabaseClient };
@@ -15,6 +15,7 @@ export async function autenticar(request: Request): Promise<Autenticado | null> 
 	if (!token) return null;
 	const supabase = clienteDoUsuario(token);
 	const { data, error } = await supabase.auth.getUser(token);
+	if (isAuthRetryableFetchError(error)) throw error;
 	if (error || !data.user) return null;
 	return { usuario: data.user, supabase };
 }

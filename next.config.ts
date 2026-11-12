@@ -3,11 +3,11 @@ import type { NextConfig } from 'next';
 const desenvolvimento = process.env.NODE_ENV === 'development';
 
 function origemSupabase(): string {
-	try {
-		return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').origin;
-	} catch {
-		return '';
-	}
+	const valor = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+	const url = URL.canParse(valor) ? new URL(valor) : null;
+	if (url?.protocol === 'https:' || url?.protocol === 'http:') return url.origin;
+	if (process.env.VERCEL_ENV === 'production') throw new Error('NEXT_PUBLIC_SUPABASE_URL ausente ou inválida: a CSP bloquearia as chamadas ao Supabase.');
+	return '';
 }
 
 const politicaConteudo = [

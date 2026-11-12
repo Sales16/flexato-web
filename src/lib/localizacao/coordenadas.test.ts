@@ -42,7 +42,11 @@ describe('dentroDoBrasil', () => {
 });
 
 describe('arredondar', () => {
-	it('mantém 4 casas por padrão', () => {
-		expect(arredondar({ lat: -23.550519, lng: -46.633309 })).toEqual({ lat: -23.5505, lng: -46.6333 });
+	it('mantém 3 casas por padrão', () => {
+		expect(arredondar({ lat: -23.550519, lng: -46.633709 })).toEqual({ lat: -23.551, lng: -46.634 });
+	});
+
+	it('aceita outra precisão', () => {
+		expect(arredondar({ lat: -23.550519, lng: -46.633309 }, 4)).toEqual({ lat: -23.5505, lng: -46.6333 });
 	});
 });

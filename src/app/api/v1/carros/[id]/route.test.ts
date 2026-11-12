@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
@@ -15,7 +16,7 @@ const getUser = vi.fn();
 const supabase = { auth: { getUser } };
 
 function requisicao(metodo: string, { token = 'token-valido', corpo }: { token?: string | null; corpo?: unknown } = {}) {
-	const headers = new Headers({ 'content-type': 'application/json' });
+	const headers = new Headers({ 'content-type': 'application/json', 'x-forwarded-for': randomUUID() });
 	if (token) headers.set('authorization', `Bearer ${token}`);
 	return new Request(`http://localhost/api/v1/carros/${ID}`, {
 		method: metodo,

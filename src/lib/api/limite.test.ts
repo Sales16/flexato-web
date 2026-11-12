@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarLimitador, ESCRITA, ipDoCliente, limitar, type Regra } from './limite';
 
 const regra: Regra = { nome: 'teste', limite: 3, janelaMs: 10_000 };
@@ -33,7 +33,7 @@ describe('criarLimitador', () => {
 		expect(consumir(regra, 'a')).not.toBeNull();
 	});
 
-	it('nunca pede menos de 1 segundo de espera', () => {
+	it('arredonda a espera para cima, em segundos inteiros', () => {
 		const r = relogio();
 		const consumir = criarLimitador(r.agora);
 		for (let i = 0; i < 3; i++) consumir(regra, 'a');
@@ -61,12 +61,17 @@ describe('ipDoCliente', () => {
 });
 
 describe('limitar', () => {
-	it('responde 429 no formato padrão com Retry-After depois do limite', async () => {
+	afterEach(() => vi.useRealTimers());
+
+	it('responde 429 no formato padrão com Retry-After em segundos até o fim da janela', async () => {
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(1_000_000);
 		const request = new Request('http://localhost', { headers: { 'x-forwarded-for': '203.0.113.50' } });
 		for (let i = 0; i < ESCRITA.limite; i++) expect(limitar(request, ESCRITA)).toBeNull();
+		vi.setSystemTime(1_015_500);
 		const resposta = limitar(request, ESCRITA);
 		expect(resposta?.status).toBe(429);
-		expect(Number(resposta?.headers.get('Retry-After'))).toBeGreaterThan(0);
+		expect(resposta?.headers.get('Retry-After')).toBe('45');
 		expect(await resposta?.json()).toEqual({ erro: { codigo: 'muitas_requisicoes', mensagem: expect.any(String) } });
 	});
 });

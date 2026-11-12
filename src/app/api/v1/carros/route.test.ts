@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
@@ -22,7 +24,7 @@ const getUser = vi.fn();
 const supabase = { auth: { getUser } };
 
 function requisicao(metodo: string, { token = 'token-valido', corpo }: { token?: string | null; corpo?: unknown } = {}) {
-	const headers = new Headers({ 'content-type': 'application/json' });
+	const headers = new Headers({ 'content-type': 'application/json', 'x-forwarded-for': randomUUID() });
 	if (token) headers.set('authorization', `Bearer ${token}`);
 	return new Request('http://localhost/api/v1/carros', {
 		method: metodo,
@@ -64,27 +66,19 @@ describe('GET /api/v1/carros', () => {
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
 	});
 
-	it('retorna 500 no formato padrão quando a autenticação falha', async () => {
-		getUser.mockRejectedValue(new Error('rede'));
+	it('retorna 500 no formato padrão quando o Auth do Supabase está indisponível', async () => {
+		getUser.mockResolvedValue({ data: { user: null }, error: new AuthRetryableFetchError('Service Unavailable', 503) });
 		const resposta = await GET(requisicao('GET'));
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		expect(listarCarros).not.toHaveBeenCalled();
 	});
 
-	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
-		vi.mocked(criarCarro).mockResolvedValue(carro);
-		const comIp = () => {
-			const r = requisicao('POST', { corpo: { nome: 'Onix', consumo } });
-			r.headers.set('x-forwarded-for', '198.51.100.7');
-			return r;
-		};
-		for (let i = 0; i < ESCRITA.limite; i++) expect((await POST(comIp())).status).toBe(201);
-		getUser.mockClear();
-		const resposta = await POST(comIp());
-		expect(resposta.status).toBe(429);
-		expect(Number(resposta.headers.get('Retry-After'))).toBeGreaterThan(0);
-		expect(await resposta.json()).toEqual({ erro: { codigo: 'muitas_requisicoes', mensagem: expect.any(String) } });
-		expect(getUser).not.toHaveBeenCalled();
+	it('retorna 401 quando o Auth do Supabase recusa o token', async () => {
+		getUser.mockResolvedValue({ data: { user: null }, error: new AuthApiError('invalid JWT', 401, 'bad_jwt') });
+		const resposta = await GET(requisicao('GET'));
+		expect(resposta.status).toBe(401);
+		expect((await resposta.json()).erro.codigo).toBe('nao_autenticado');
 	});
 });
 
@@ -122,5 +116,21 @@ describe('POST /api/v1/carros', () => {
 		const resposta = await POST(requisicao('POST', { corpo: { nome: 'Onix', consumo } }));
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+	});
+
+	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
+		vi.mocked(criarCarro).mockResolvedValue(carro);
+		const comIp = () => {
+			const r = requisicao('POST', { corpo: { nome: 'Onix', consumo } });
+			r.headers.set('x-forwarded-for', '198.51.100.7');
+			return r;
+		};
+		for (let i = 0; i < ESCRITA.limite; i++) expect((await POST(comIp())).status).toBe(201);
+		getUser.mockClear();
+		const resposta = await POST(comIp());
+		expect(resposta.status).toBe(429);
+		expect(Number(resposta.headers.get('Retry-After'))).toBeGreaterThan(0);
+		expect(await resposta.json()).toEqual({ erro: { codigo: 'muitas_requisicoes', mensagem: expect.any(String) } });
+		expect(getUser).not.toHaveBeenCalled();
 	});
 });

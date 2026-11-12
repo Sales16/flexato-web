@@ -22,20 +22,26 @@ export async function buscarHistoricoPrecos(
 	const semanas: Semana[] = importacoes.map(s => ({ inicio: s.semana_inicio, fim: s.semana_fim }));
 	const fins = semanas.map(s => s.fim);
 
-	const { data: linhasUf, error: erroUf } = await supabase.from('precos_uf').select(COLUNAS).eq('uf', uf).in('semana_fim', fins);
-	if (erroUf) throw erroUf;
+	const [respostaUf, respostaMunicipio] = await Promise.all([
+		supabase.from('precos_uf').select(COLUNAS).eq('uf', uf).in('semana_fim', fins),
+		municipioChave
+			? supabase
+					.from('precos_municipio')
+					.select(`${COLUNAS}, municipio_nome`)
+					.eq('uf', uf)
+					.eq('municipio_chave', municipioChave)
+					.in('semana_fim', fins)
+					.order('semana_fim', { ascending: false })
+			: null,
+	]);
+	if (respostaUf.error) throw respostaUf.error;
+	const linhasUf = respostaUf.data;
 
 	let municipio: MunicipioApi | null = null;
 	let linhasMunicipio: LinhaPrecoSemanal[] = [];
-	if (municipioChave) {
-		const { data, error } = await supabase
-			.from('precos_municipio')
-			.select(`${COLUNAS}, municipio_nome`)
-			.eq('uf', uf)
-			.eq('municipio_chave', municipioChave)
-			.in('semana_fim', fins)
-			.order('semana_fim', { ascending: false });
-		if (error) throw error;
+	if (municipioChave && respostaMunicipio) {
+		if (respostaMunicipio.error) throw respostaMunicipio.error;
+		const data = respostaMunicipio.data;
 		linhasMunicipio = data as LinhaPrecoSemanal[];
 		if (data.length) municipio = { chave: municipioChave, nome: data[0].municipio_nome };
 	}

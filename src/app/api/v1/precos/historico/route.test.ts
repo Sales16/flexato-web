@@ -88,6 +88,23 @@ describe('GET /api/v1/precos/historico', () => {
 		]);
 	});
 
+	it('consulta UF e município em paralelo', async () => {
+		let municipioJaConsultado = false;
+		estado.falso = criarSupabaseFalso(c => {
+			if (c.tabela === 'precos_uf') municipioJaConsultado = estado.falso.consultas.some(x => x.tabela === 'precos_municipio');
+			return padrao(c);
+		});
+		expect((await GET(requisicao('uf=SP&municipio=São Paulo'))).status).toBe(200);
+		expect(municipioJaConsultado).toBe(true);
+	});
+
+	it.each(['precos_uf', 'precos_municipio'])('retorna 500 quando a consulta de %s falha', async tabela => {
+		const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
+		estado.falso = criarSupabaseFalso(c => (c.tabela === tabela ? { data: null, error: new Error('falha') } : padrao(c)));
+		expect((await GET(requisicao('uf=SP&municipio=São Paulo'))).status).toBe(500);
+		espiao.mockRestore();
+	});
+
 	it('limita pelo número de semanas pedido e consulta só essas semanas', async () => {
 		const resposta = await GET(requisicao('uf=SP&semanas=1'));
 		const corpo = await resposta.json();
