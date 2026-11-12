@@ -993,6 +993,228 @@
 		max-width: calc(100% - 32px);
 	}
 
+	.faixa {
+		display: grid;
+		gap: 5px;
+	}
+	.faixa-trilho {
+		position: relative;
+		height: 4px;
+		border-radius: 999px;
+		background: var(--surface-2);
+		box-shadow: inset 0 0 0 1px var(--line);
+	}
+	.faixa-medio,
+	.faixa-atual {
+		position: absolute;
+		top: 50%;
+		transform: translate(-50%, -50%);
+	}
+	.faixa-medio {
+		width: 2px;
+		height: 10px;
+		background: var(--muted);
+	}
+	.faixa-atual {
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		background: var(--ink);
+		border: 2px solid var(--surface);
+	}
+	.faixa-valores {
+		display: flex;
+		justify-content: space-between;
+		gap: 6px;
+		font-size: 11px;
+		color: var(--muted);
+		flex-wrap: wrap;
+	}
+	.faixa-aviso {
+		font-size: 11px;
+		color: var(--ink);
+	}
+
+	.grafico {
+		display: grid;
+		gap: 8px;
+	}
+	.grafico-legenda {
+		display: flex;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+	.grafico-legenda .fuel-tag {
+		font-size: 13px;
+	}
+	.marca-serie {
+		width: 10px;
+		height: 10px;
+		display: inline-block;
+		flex: none;
+	}
+	.marca-serie.etanol {
+		background: var(--etanol);
+		border-radius: 50%;
+	}
+	.marca-serie.gasolina {
+		background: var(--gasolina);
+		border-radius: 2px;
+	}
+	.grafico-area {
+		overflow: hidden;
+	}
+	.grafico-area svg {
+		display: block;
+	}
+	.grafico .grade {
+		stroke: var(--line);
+		stroke-width: 1;
+	}
+	.grafico .eixo {
+		fill: var(--muted);
+		font-size: 11px;
+		font-family: var(--font-num);
+	}
+	.grafico .linha {
+		fill: none;
+		stroke-width: 2;
+		stroke-linejoin: round;
+		stroke-linecap: round;
+	}
+	.grafico .serie.etanol .linha {
+		stroke: var(--etanol);
+	}
+	.grafico .serie.gasolina .linha {
+		stroke: var(--gasolina);
+	}
+	.grafico .serie.etanol .marcador {
+		fill: var(--etanol);
+	}
+	.grafico .serie.gasolina .marcador {
+		fill: var(--gasolina);
+	}
+	.grafico .marcador {
+		stroke: var(--surface);
+		stroke-width: 2;
+	}
+	.grafico .alvo {
+		fill: transparent;
+	}
+	.grafico .ponto:hover .marcador {
+		stroke: var(--ink);
+	}
+	.grafico .rotulo-final {
+		fill: var(--ink);
+		font-size: 12px;
+		font-weight: 600;
+	}
+
+	.car.expandido {
+		grid-column: 1 / -1;
+	}
+	.car.expandido .mini,
+	.car.expandido .ratio-line {
+		max-width: 460px;
+	}
+	.car-edit {
+		display: grid;
+		gap: 12px;
+	}
+	.secao-abast {
+		border-top: 1px solid var(--line);
+		padding-top: 14px;
+		display: grid;
+		gap: 14px;
+	}
+	.secao-abast h4 {
+		font-family: var(--font-display);
+		font-size: 15px;
+		font-weight: 650;
+	}
+	.medicoes {
+		display: grid;
+		gap: 8px;
+	}
+	.medicao {
+		border: 1px solid var(--line);
+		border-radius: 12px;
+		padding: 10px 12px;
+		display: grid;
+		gap: 6px;
+	}
+	.medicao-topo {
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+	.medicao-valor {
+		font-family: var(--font-num);
+		font-size: 20px;
+		font-weight: 600;
+		margin-left: auto;
+	}
+	.medicao-valor small {
+		font-size: 12px;
+		color: var(--muted);
+		font-weight: 500;
+	}
+	.confirmar {
+		background: var(--surface-2);
+		border-radius: 10px;
+		padding: 10px 12px;
+		display: grid;
+		gap: 8px;
+		font-size: 14px;
+	}
+	.form-abast {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+		gap: 10px 12px;
+		align-items: end;
+	}
+	.checkbox {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 14px;
+		padding-block: 9px;
+		cursor: pointer;
+	}
+	.checkbox input {
+		accent-color: var(--ink);
+		width: 16px;
+		height: 16px;
+	}
+	.lista-abast {
+		display: grid;
+		gap: 6px;
+	}
+	.item-abast {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 4px 12px;
+		padding: 8px 10px;
+		border: 1px solid var(--line);
+		border-radius: 10px;
+		font-size: 13.5px;
+	}
+	.item-abast .data {
+		font-family: var(--font-num);
+		color: var(--muted);
+	}
+	.item-abast .detalhes {
+		display: flex;
+		gap: 4px 12px;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+	.item-abast .confirmar {
+		grid-column: 1 / -1;
+	}
+
 	@media (max-width: 880px) {
 		.calc-grid {
 			grid-template-columns: minmax(0, 1fr);
@@ -1030,6 +1252,19 @@
 		.nav {
 			margin-left: 0;
 			width: 100%;
+		}
+		.item-abast {
+			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-areas: 'data acao' 'detalhes detalhes';
+		}
+		.item-abast .data {
+			grid-area: data;
+		}
+		.item-abast .detalhes {
+			grid-area: detalhes;
+		}
+		.item-abast > .btn {
+			grid-area: acao;
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {

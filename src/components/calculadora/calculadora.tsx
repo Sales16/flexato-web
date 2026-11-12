@@ -11,6 +11,8 @@ import { ehUf, UFS, type Uf } from '@/lib/ufs';
 import { useAvisos } from '@/components/provedor-avisos';
 import { useSessao } from '@/components/provedor-sessao';
 import { CONSUMO_VAZIO, camposDeConsumo, consumoCompleto, consumoDeCampos, mesmoConsumo, type CamposConsumo } from './campos';
+import { FaixaPreco } from './faixa-preco';
+import { HistoricoPrecos } from './historico-precos';
 import { LocalizacaoAutomatica } from './localizacao';
 import { BuscaCarro, type EscolhaCarro } from './busca-carro';
 import { BarraResultado, Resultado } from './resultado';
@@ -398,6 +400,7 @@ export function Calculadora() {
 											}}
 										/>
 									</div>
+									{estadoPrecos === 'ok' && <FaixaPreco preco={precosApi?.precos[c]} atual={lerDecimal(precos[c])} />}
 								</div>
 							))}
 						</div>
@@ -418,6 +421,7 @@ export function Calculadora() {
 								</button>
 							)}
 						</div>
+						<HistoricoPrecos uf={uf} municipio={municipio} />
 					</div>
 
 					<div className="panel">

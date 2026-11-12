@@ -1,4 +1,5 @@
 import type { Combustivel, Consumo } from '@/lib/calculo';
+import type { ConsumoReal, Trecho } from '@/lib/consumo-real';
 import type { Uf } from '@/lib/ufs';
 
 export type Semana = { inicio: string; fim: string };
@@ -45,6 +46,38 @@ export type CarroApi = {
 	consumo: Consumo;
 	criadoEm: string;
 	atualizadoEm: string;
+};
+
+export type AbastecimentoApi = {
+	id: string;
+	carroId: string;
+	data: string;
+	combustivel: Combustivel;
+	litros: number;
+	hodometroKm: number;
+	precoLitro: number | null;
+	tanqueCheio: boolean;
+	trecho: Trecho | null;
+	criadoEm: string;
+};
+
+export type AbastecimentosApi = {
+	itens: AbastecimentoApi[];
+	consumoReal: ConsumoReal;
+};
+
+export type PontoHistoricoApi = {
+	semana: Semana;
+	precoMedio: number;
+	precoMin: number | null;
+	precoMax: number | null;
+	fonte: FontePreco;
+};
+
+export type HistoricoPrecosApi = {
+	uf: Uf;
+	municipio: MunicipioApi | null;
+	series: Record<Combustivel, PontoHistoricoApi[]>;
 };
 
 export type MunicipioLocalizadoApi = { ibge: number; nome: string; chave: string | null };

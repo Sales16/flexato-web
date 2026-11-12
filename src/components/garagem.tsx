@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { razaoLimiteDoCarro } from '@/lib/calculo';
 import { chamarApi, mensagemDeErro } from '@/lib/api/cliente';
-import { lerDecimal, numero } from '@/lib/formato';
+import { decimalParaCampo, lerDecimal, numero } from '@/lib/formato';
 import type { CarroApi, VeiculoCatalogoApi } from '@/lib/tipos-api';
+import { Abastecimentos } from './abastecimentos';
 import { CHAVE_CARRO_ESCOLHIDO } from './calculadora/calculadora';
 import { useAvisos } from './provedor-avisos';
 import { useSessao } from './provedor-sessao';
@@ -98,7 +99,12 @@ export function Garagem() {
 			) : (
 				<div className="cars">
 					{carros.map(carro => (
-						<CartaoCarro key={carro.id} carro={carro} aoRemover={id => atualizarCarros(itens => itens.filter(x => x.id !== id))} />
+						<CartaoCarro
+							key={carro.id}
+							carro={carro}
+							aoAlterar={alterado => atualizarCarros(itens => itens.map(x => (x.id === alterado.id ? alterado : x)))}
+							aoRemover={id => atualizarCarros(itens => itens.filter(x => x.id !== id))}
+						/>
 					))}
 				</div>
 			)}
@@ -122,10 +128,14 @@ function Cabecalho({ aoAdicionar }: { aoAdicionar?: () => void }) {
 	);
 }
 
-function CartaoCarro({ carro, aoRemover }: { carro: CarroApi; aoRemover: (id: string) => void }) {
+type PropsCartao = { carro: CarroApi; aoAlterar: (carro: CarroApi) => void; aoRemover: (id: string) => void };
+
+function CartaoCarro({ carro, aoAlterar, aoRemover }: PropsCartao) {
 	const router = useRouter();
 	const avisar = useAvisos();
 	const [removendo, setRemovendo] = useState(false);
+	const [editando, setEditando] = useState(false);
+	const [abastecimentosAbertos, setAbastecimentosAbertos] = useState(false);
 	const { etanol, gasolina } = carro.consumo;
 
 	async function remover() {
@@ -147,8 +157,23 @@ function CartaoCarro({ carro, aoRemover }: { carro: CarroApi; aoRemover: (id: st
 		router.push('/');
 	}
 
+	if (editando) {
+		return (
+			<article className="car">
+				<EdicaoCarro
+					carro={carro}
+					aoCancelar={() => setEditando(false)}
+					aoSalvar={alterado => {
+						aoAlterar(alterado);
+						setEditando(false);
+					}}
+				/>
+			</article>
+		);
+	}
+
 	return (
-		<article className="car">
+		<article className={abastecimentosAbertos ? 'car expandido' : 'car'}>
 			<div className="car-head">
 				<div>
 					<h3>{carro.nome}</h3>
@@ -180,11 +205,92 @@ function CartaoCarro({ carro, aoRemover }: { carro: CarroApi; aoRemover: (id: st
 				<button type="button" className="btn primary small" onClick={usar}>
 					Usar no cálculo
 				</button>
+				<button type="button" className="btn small" aria-expanded={abastecimentosAbertos} onClick={() => setAbastecimentosAbertos(a => !a)}>
+					{abastecimentosAbertos ? 'Fechar abastecimentos' : 'Abastecimentos'}
+				</button>
+				<button type="button" className="btn ghost small" onClick={() => setEditando(true)}>
+					Editar
+				</button>
 				<button type="button" className="btn ghost small" onClick={remover} disabled={removendo}>
 					{removendo ? 'Removendo…' : 'Remover'}
 				</button>
 			</div>
+			{abastecimentosAbertos && <Abastecimentos carro={carro} aoAlterarCarro={aoAlterar} />}
 		</article>
+	);
+}
+
+type PropsEdicao = { carro: CarroApi; aoCancelar: () => void; aoSalvar: (carro: CarroApi) => void };
+
+function EdicaoCarro({ carro, aoCancelar, aoSalvar }: PropsEdicao) {
+	const avisar = useAvisos();
+	const [salvando, setSalvando] = useState(false);
+	const [erro, setErro] = useState<string | null>(null);
+	const iniciais: Record<(typeof CAMPOS_PERSONALIZADO)[number]['id'], number> = {
+		'etanol-cidade': carro.consumo.etanol.cidade,
+		'etanol-estrada': carro.consumo.etanol.estrada,
+		'gasolina-cidade': carro.consumo.gasolina.cidade,
+		'gasolina-estrada': carro.consumo.gasolina.estrada,
+	};
+
+	async function salvar(e: FormEvent<HTMLFormElement>) {
+		e.preventDefault();
+		const dados = new FormData(e.currentTarget);
+		const nome = String(dados.get('nome') ?? '').trim();
+		const [ec, ee, gc, ge] = CAMPOS_PERSONALIZADO.map(c => lerDecimal(String(dados.get(c.id) ?? '')));
+		if (!nome) return setErro('Dê um nome ao carro.');
+		if (nome.length > 60) return setErro('Use até 60 caracteres no nome.');
+		if (![ec, ee, gc, ge].every(v => Number.isFinite(v) && v < 100)) return setErro('Informe os quatro consumos em km/l, entre 0 e 99,9.');
+		setErro(null);
+		setSalvando(true);
+		try {
+			const alterado = await chamarApi<CarroApi>(`/carros/${carro.id}`, {
+				method: 'PATCH',
+				autenticado: true,
+				corpo: { nome, consumo: { etanol: { cidade: ec, estrada: ee }, gasolina: { cidade: gc, estrada: ge } } },
+			});
+			avisar(`"${alterado.nome}" atualizado`);
+			aoSalvar(alterado);
+		} catch (e) {
+			setErro(mensagemDeErro(e, 'Não foi possível salvar as alterações.'));
+			setSalvando(false);
+		}
+	}
+
+	return (
+		<form className="car-edit" onSubmit={salvar} noValidate aria-label={`Editar ${carro.nome}`}>
+			<div className="field">
+				<label htmlFor={`editar-nome-${carro.id}`}>Nome do carro</label>
+				<input id={`editar-nome-${carro.id}`} name="nome" className="entrada" type="text" maxLength={60} defaultValue={carro.nome} autoFocus />
+			</div>
+			<div className="campos-2">
+				{CAMPOS_PERSONALIZADO.map(c => (
+					<div className="field" key={c.id}>
+						<label htmlFor={`editar-${c.id}-${carro.id}`}>{c.rotulo}</label>
+						<div className="unit-input">
+							<input
+								id={`editar-${c.id}-${carro.id}`}
+								name={c.id}
+								className="entrada"
+								type="text"
+								inputMode="decimal"
+								defaultValue={decimalParaCampo(iniciais[c.id], 1)}
+							/>
+							<span>km/l</span>
+						</div>
+					</div>
+				))}
+			</div>
+			{erro && <p className="hint erro">{erro}</p>}
+			<div className="row">
+				<button type="submit" className="btn primary small" disabled={salvando}>
+					{salvando ? 'Salvando…' : 'Salvar alterações'}
+				</button>
+				<button type="button" className="btn ghost small" onClick={aoCancelar} disabled={salvando}>
+					Cancelar
+				</button>
+			</div>
+		</form>
 	);
 }
 
