@@ -1030,6 +1030,10 @@
 		color: var(--muted);
 		flex-wrap: wrap;
 	}
+	.faixa-aviso {
+		font-size: 11px;
+		color: var(--ink);
+	}
 
 	.grafico {
 		display: grid;
@@ -1207,6 +1211,9 @@
 		flex-wrap: wrap;
 		align-items: center;
 	}
+	.item-abast .confirmar {
+		grid-column: 1 / -1;
+	}
 
 	@media (max-width: 880px) {
 		.calc-grid {
@@ -1283,7 +1290,7 @@
 		.item-abast .detalhes {
 			grid-area: detalhes;
 		}
-		.item-abast .btn {
+		.item-abast > .btn {
 			grid-area: acao;
 		}
 	}

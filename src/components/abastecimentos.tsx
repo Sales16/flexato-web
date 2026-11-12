@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { Combustivel } from '@/lib/calculo';
 import { chamarApi, mensagemDeErro } from '@/lib/api/cliente';
 import type { ConsumoMedido, MotivoDescarte, Trecho, TrechoMedido } from '@/lib/consumo-real';
+import { dataNoFuturo, hojeEmSaoPaulo } from '@/lib/data-local';
 import { lerDecimal, lerInteiro, numero, reais } from '@/lib/formato';
 import type { AbastecimentoApi, AbastecimentosApi, CarroApi } from '@/lib/tipos-api';
 import { useAvisos } from './provedor-avisos';
@@ -19,13 +20,6 @@ const MOTIVO: Record<MotivoDescarte, string> = {
 };
 
 type Carga = { carroId: string; dados: AbastecimentosApi | null; erro: string | null };
-
-const doisDigitos = (n: number) => String(n).padStart(2, '0');
-
-function hoje(): string {
-	const d = new Date();
-	return `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}`;
-}
 
 function dataCurta(iso: string): string {
 	const [a, m, d] = iso.split('-');
@@ -104,7 +98,7 @@ function ConsumoMedidoCarro({ carro, dados, aoAlterarCarro }: { carro: CarroApi;
 			) : (
 				<div className="medicoes">
 					{medicoes.map(m => (
-						<Medicao key={`${m.combustivel}-${m.trecho}`} carro={carro} medicao={m} aoAlterarCarro={aoAlterarCarro} />
+						<Medicao key={`${m.combustivel}-${m.trecho}-${umaCasa(m.kmPorLitro)}`} carro={carro} medicao={m} aoAlterarCarro={aoAlterarCarro} />
 					))}
 				</div>
 			)}
@@ -134,8 +128,8 @@ function Medicao({ carro, medicao: m, aoAlterarCarro }: { carro: CarroApi; medic
 		setSalvando(true);
 		setErro(null);
 		try {
-			const consumo = { ...carro.consumo, [m.combustivel]: { ...carro.consumo[m.combustivel], [m.trecho]: sugerido } };
-			const atualizado = await chamarApi<CarroApi>(`/carros/${carro.id}`, { method: 'PATCH', corpo: { consumo }, autenticado: true });
+			const consumoTrecho = { combustivel: m.combustivel, trecho: m.trecho, kmPorLitro: sugerido };
+			const atualizado = await chamarApi<CarroApi>(`/carros/${carro.id}`, { method: 'PATCH', corpo: { consumoTrecho }, autenticado: true });
 			aoAlterarCarro(atualizado);
 			setConfirmando(false);
 			avisar(`Consumo de ${nome.toLowerCase()} ${TRECHO_MEDIDO[m.trecho]} atualizado`);
@@ -200,7 +194,7 @@ function Medicao({ carro, medicao: m, aoAlterarCarro }: { carro: CarroApi; medic
 
 function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ultimo: AbastecimentoApi | undefined; aoSalvar: () => void }) {
 	const avisar = useAvisos();
-	const [dataPadrao] = useState(hoje);
+	const [dataPadrao, setDataPadrao] = useState(() => hojeEmSaoPaulo());
 	const [salvando, setSalvando] = useState(false);
 	const [erro, setErro] = useState<string | null>(null);
 	const prefixo = `abast-${carroId}`;
@@ -216,8 +210,11 @@ function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ult
 		const textoPreco = String(campos.get('preco') ?? '').trim();
 		const precoLitro = textoPreco ? lerDecimal(textoPreco) : null;
 		const trecho = String(campos.get('trecho') ?? '');
+		const agora = new Date();
+		setDataPadrao(hojeEmSaoPaulo(agora));
 
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return setErro('Informe a data do abastecimento.');
+		if (dataNoFuturo(data, agora)) return setErro('A data do abastecimento não pode ser depois de hoje.');
 		if (!Number.isFinite(litros) || litros >= 1000) return setErro('Informe os litros abastecidos, por exemplo 38,5.');
 		if (!Number.isFinite(hodometroKm) || hodometroKm >= 10000000) return setErro('Informe o hodômetro em km, sem casas decimais.');
 		if (precoLitro !== null && (!Number.isFinite(precoLitro) || precoLitro >= 100))
@@ -320,11 +317,13 @@ function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ult
 function ListaAbastecimentos({ carroId, itens, aoRemover }: { carroId: string; itens: AbastecimentoApi[]; aoRemover: () => void }) {
 	const avisar = useAvisos();
 	const [removendo, setRemovendo] = useState<string | null>(null);
+	const [confirmando, setConfirmando] = useState<string | null>(null);
 
 	async function remover(item: AbastecimentoApi) {
 		setRemovendo(item.id);
 		try {
 			await chamarApi(`/carros/${carroId}/abastecimentos/${item.id}`, { method: 'DELETE', autenticado: true });
+			setConfirmando(null);
 			avisar('Abastecimento removido');
 			aoRemover();
 		} catch (e) {
@@ -350,15 +349,29 @@ function ListaAbastecimentos({ carroId, itens, aoRemover }: { carroId: string; i
 						<span className={item.tanqueCheio ? 'chip ok' : 'chip'}>{item.tanqueCheio ? 'Tanque cheio' : 'Parcial'}</span>
 						{item.trecho && <span className="chip">{NOME_TRECHO[item.trecho]}</span>}
 					</span>
-					<button
-						type="button"
-						className="btn ghost small"
-						onClick={() => remover(item)}
-						disabled={removendo !== null}
-						aria-label={`Remover abastecimento de ${dataCurta(item.data)}`}
-					>
-						{removendo === item.id ? 'Removendo…' : 'Remover'}
-					</button>
+					{confirmando === item.id ? (
+						<div className="confirmar" role="group" aria-label={`Confirmar remoção do abastecimento de ${dataCurta(item.data)}`}>
+							<p>Remover o abastecimento de {dataCurta(item.data)}? O consumo medido será recalculado sem ele.</p>
+							<div className="row">
+								<button type="button" className="btn primary small" onClick={() => remover(item)} disabled={removendo !== null}>
+									{removendo === item.id ? 'Removendo…' : 'Confirmar remoção'}
+								</button>
+								<button type="button" className="btn ghost small" onClick={() => setConfirmando(null)} disabled={removendo !== null}>
+									Cancelar
+								</button>
+							</div>
+						</div>
+					) : (
+						<button
+							type="button"
+							className="btn ghost small"
+							onClick={() => setConfirmando(item.id)}
+							disabled={removendo !== null}
+							aria-label={`Remover abastecimento de ${dataCurta(item.data)}`}
+						>
+							Remover
+						</button>
+					)}
 				</li>
 			))}
 		</ul>

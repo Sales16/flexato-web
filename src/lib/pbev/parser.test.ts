@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edicaoDaTabela, lerTabelaPbev, urlTabelaMaisRecente, type ItemPdf } from './parser';
+import { contagemDivergente, edicaoDaTabela, lerTabelaPbev, urlTabelaMaisRecente, type ItemPdf } from './parser';
 
 const PAGINA = 'https://www.gov.br/inmetro/pt-br/assuntos/regulamentacao/tabelas-de-eficiencia-energetica/veiculos-automotivos-pbe-veicular';
 
@@ -223,14 +223,26 @@ describe('edicaoDaTabela', () => {
 	});
 });
 
+describe('contagemDivergente', () => {
+	it('acusa quando as linhas flex lidas diferem do resumo do PDF', () => {
+		expect(contagemDivergente({ flexDeclarados: 310, linhasFlex: 309 })).toBe(true);
+	});
+
+	it('aceita contagem igual ao resumo ou PDF sem resumo', () => {
+		expect(contagemDivergente({ flexDeclarados: 310, linhasFlex: 310 })).toBe(false);
+		expect(contagemDivergente({ flexDeclarados: null, linhasFlex: 12 })).toBe(false);
+	});
+});
+
 describe('urlTabelaMaisRecente', () => {
 	it('escolhe a tabela do ano mais recente e ignora etiquetas de elétricos e híbridos', () => {
 		const html = `
-			<a href="${PAGINA}/pbe-veicular-vehp-flex.pdf/@@download/file">a</a>
+			<a href="${PAGINA}/pbe-veicular-vehp-flex-2027.pdf/@@download/file">a</a>
 			<a href="${PAGINA}/mascara-pbev-2025-mar-11.pdf/view">b</a>
 			<a href="${PAGINA}/mascara-pbev-2026_19_jan-rev01.pdf/view">c</a>
 			<a href="${PAGINA}/mascara-pbev-2026_19_jan-rev01.pdf/@@download/file">c</a>
-			<a href="${PAGINA}/ence-pev-veic-eletricos.pdf/@@download/file">d</a>
+			<a href="${PAGINA}/ence-pbev-veic-eletricos-2027.pdf/@@download/file">d</a>
+			<a href="${PAGINA}/pbev-hibridos-2027.pdf/@@download/file">h</a>
 			<a href="${PAGINA}/pbe-veicular-2024-1.pdf/@@download/file">e</a>
 			<a href="${PAGINA}/veiculos-leves-2021/@@download/file">f</a>`;
 		expect(urlTabelaMaisRecente(html, PAGINA)).toBe(`${PAGINA}/mascara-pbev-2026_19_jan-rev01.pdf/@@download/file`);

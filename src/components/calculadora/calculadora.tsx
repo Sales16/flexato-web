@@ -5,6 +5,7 @@ import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'rea
 import { calcular, validarEntrada, type Combustivel } from '@/lib/calculo';
 import { chamarApi, ErroApi, mensagemDeErro } from '@/lib/api/cliente';
 import { decimalParaCampo, lerDecimal, lerInteiro, numero, reais } from '@/lib/formato';
+import { trocaDeSelecao, type Selecao } from '@/lib/selecao-carro';
 import type { CarroApi, LocaisApi, PrecosApi, Semana, VeiculoCatalogoApi } from '@/lib/tipos-api';
 import { ehUf, UFS, type Uf } from '@/lib/ufs';
 import { useAvisos } from '@/components/provedor-avisos';
@@ -25,7 +26,6 @@ const ATALHOS_USO = [
 	{ rotulo: 'Estrada', valor: 0 },
 ] as const;
 
-type Selecao = `cat:${number}` | `gar:${string}` | 'outro';
 type EstadoPrecos = 'carregando' | 'ok' | 'sem_dados' | 'erro';
 
 function lerArmazenado(armazenamento: 'local' | 'sessao', chave: string): string | null {
@@ -187,13 +187,15 @@ export function Calculadora() {
 	const resultado = validarEntrada(entrada).length ? null : calcular(entrada);
 
 	function escolherCarro(escolha: EscolhaCarro) {
+		const nova = trocaDeSelecao(selecao, escolha);
+		if (!nova) return;
 		if (escolha.tipo === 'catalogo') {
 			setVeiculoCatalogo(escolha.carro);
-			aplicarSelecao(`cat:${escolha.carro.id}`, camposDeConsumo(escolha.carro.consumo));
+			aplicarSelecao(nova, camposDeConsumo(escolha.carro.consumo));
 		} else if (escolha.tipo === 'garagem') {
-			aplicarSelecao(`gar:${escolha.carro.id}`, camposDeConsumo(escolha.carro.consumo));
+			aplicarSelecao(nova, camposDeConsumo(escolha.carro.consumo));
 		} else {
-			aplicarSelecao('outro', CONSUMO_VAZIO);
+			aplicarSelecao(nova, CONSUMO_VAZIO);
 		}
 	}
 

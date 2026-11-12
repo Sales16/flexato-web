@@ -18,7 +18,7 @@ export function dentroDoBrasil({ lat, lng }: Coordenadas): boolean {
 	return lat >= LIMITES_BRASIL.latMin && lat <= LIMITES_BRASIL.latMax && lng >= LIMITES_BRASIL.lngMin && lng <= LIMITES_BRASIL.lngMax;
 }
 
-export function arredondar({ lat, lng }: Coordenadas, casas = 4): Coordenadas {
+export function arredondar({ lat, lng }: Coordenadas, casas = 3): Coordenadas {
 	const fator = 10 ** casas;
 	return { lat: Math.round(lat * fator) / fator, lng: Math.round(lng * fator) / fator };
 }

@@ -50,7 +50,11 @@ describe('GET /api/v1/localizacao', () => {
 
 		expect(resposta.status).toBe(200);
 		expect(resposta.headers.get('cache-control')).toBe('private, no-store');
-		expect(await resposta.json()).toEqual({ uf: 'SP', municipio: { ibge: 3509502, nome: 'Campinas', chave: 'CAMPINAS' } });
+		expect(await resposta.json()).toEqual({
+			uf: 'SP',
+			semana: { inicio: '2026-11-02', fim: '2026-11-08' },
+			municipio: { ibge: 3509502, nome: 'Campinas', chave: 'CAMPINAS' },
+		});
 		expect(banco.rpc).toHaveBeenCalledWith('municipio_por_ponto', { lat: -22.9056, lng: -47.0608 });
 		expect(banco.filtros).toEqual([
 			['precos_municipio', 'semana_fim', '2026-11-08'],
@@ -66,7 +70,11 @@ describe('GET /api/v1/localizacao', () => {
 		const resposta = await GET(requisicao('?lat=-23.5&lng=-47.45'));
 
 		expect(resposta.status).toBe(200);
-		expect(await resposta.json()).toEqual({ uf: 'SP', municipio: { ibge: 3552205, nome: 'Sorocaba', chave: null } });
+		expect(await resposta.json()).toEqual({
+			uf: 'SP',
+			semana: { inicio: '2026-11-02', fim: '2026-11-08' },
+			municipio: { ibge: 3552205, nome: 'Sorocaba', chave: null },
+		});
 	});
 
 	it('devolve chave nula quando ainda não há preços importados', async () => {
@@ -74,7 +82,7 @@ describe('GET /api/v1/localizacao', () => {
 
 		const resposta = await GET(requisicao('?lat=-15.79&lng=-47.88'));
 
-		expect(await resposta.json()).toEqual({ uf: 'DF', municipio: { ibge: 5300108, nome: 'Brasília', chave: null } });
+		expect(await resposta.json()).toEqual({ uf: 'DF', semana: null, municipio: { ibge: 5300108, nome: 'Brasília', chave: null } });
 		expect(banco.filtros).toEqual([]);
 	});
 

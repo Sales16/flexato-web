@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { criarSupabaseFalso, type Resolvedor } from '@/lib/testes/supabase-falso';
 
 const estado = vi.hoisted(() => ({ falso: null as unknown as ReturnType<typeof criarSupabaseFalso> }));
@@ -109,6 +109,26 @@ describe('GET /api/v1/carros/{id}/abastecimentos', () => {
 		expect(consulta.usou('eq')?.args).toEqual(['carro_id', CARRO]);
 	});
 
+	it('pagina a lista para não perder os abastecimentos mais recentes no limite de linhas do PostgREST', async () => {
+		const primeiraPagina = Array.from({ length: 1000 }, (_, i) =>
+			linha({ id: `a${i}`, data: '2026-01-01', hodometro_km: 10000 + i * 10, tanque_cheio: false })
+		);
+		const recente = linha({ id: 'recente', data: '2026-10-10', hodometro_km: 30000 });
+		preparar(c => {
+			if (c.tabela === 'carros') return { data: { id: CARRO }, error: null };
+			const [inicio, fim] = (c.usou('range')?.args ?? [0, 999]) as [number, number];
+			return { data: [...primeiraPagina, recente].slice(inicio, fim + 1), error: null };
+		});
+		const corpo = await (await GET(requisicao('GET'), ctx())).json();
+		expect(corpo.itens).toHaveLength(1001);
+		expect(corpo.itens.at(-1).id).toBe('recente');
+		const paginas = estado.falso.consultas.filter(c => c.tabela === 'abastecimentos').map(c => c.usou('range')?.args);
+		expect(paginas).toEqual([
+			[0, 999],
+			[1000, 1999],
+		]);
+	});
+
 	it('retorna 500 quando o banco falha', async () => {
 		const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
 		preparar(c => (c.tabela === 'carros' ? { data: { id: CARRO }, error: null } : { data: null, error: new Error('falha') }));
@@ -143,6 +163,28 @@ describe('POST /api/v1/carros/{id}/abastecimentos', () => {
 		});
 	});
 
+	it('grava abastecimento parcial (sem tanque cheio)', async () => {
+		expect((await POST(requisicao('POST', { ...valido, tanqueCheio: false }), ctx())).status).toBe(201);
+		const insercao = estado.falso.consultas.find(c => c.tabela === 'abastecimentos')!.usou('insert');
+		expect(insercao?.args[0]).toMatchObject({ tanque_cheio: false });
+	});
+
+	it('exige token', async () => {
+		const resposta = await POST(requisicao('POST', valido, null), ctx());
+		expect(resposta.status).toBe(401);
+		expect((await resposta.json()).erro.codigo).toBe('nao_autenticado');
+		expect(estado.falso.consultas).toHaveLength(0);
+	});
+
+	it('retorna 500 quando o banco falha ao gravar', async () => {
+		const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
+		preparar(c => (c.tabela === 'carros' ? { data: { id: CARRO }, error: null } : { data: null, error: new Error('falha') }));
+		const resposta = await POST(requisicao('POST', valido), ctx());
+		expect(resposta.status).toBe(500);
+		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		espiao.mockRestore();
+	});
+
 	it('grava preço e trecho nulos quando não informados', async () => {
 		const semOpcionais = { ...valido, precoLitro: undefined, trecho: undefined };
 		expect((await POST(requisicao('POST', semOpcionais), ctx())).status).toBe(201);
@@ -172,6 +214,28 @@ describe('POST /api/v1/carros/{id}/abastecimentos', () => {
 		const resposta = await POST(requisicao('POST', valido), ctx());
 		expect(resposta.status).toBe(404);
 		expect(estado.falso.consultas.some(c => c.tabela === 'abastecimentos')).toBe(false);
+	});
+
+	describe('data do abastecimento', () => {
+		beforeEach(() => {
+			vi.useFakeTimers({ toFake: ['Date'] });
+			vi.setSystemTime(new Date('2026-10-11T02:00:00Z'));
+		});
+		afterEach(() => vi.useRealTimers());
+
+		it.each(['2026-10-10', '2026-10-11'])('aceita %s (hoje em São Paulo e a tolerância de fuso)', async data => {
+			const resposta = await POST(requisicao('POST', { ...valido, data }), ctx());
+			expect(resposta.status).toBe(201);
+			expect(estado.falso.consultas.find(c => c.tabela === 'abastecimentos')!.usou('insert')?.args[0]).toMatchObject({ data });
+		});
+
+		it.each(['2026-10-12', '2027-01-01'])('retorna 422 para data futura (%s)', async data => {
+			const resposta = await POST(requisicao('POST', { ...valido, data }), ctx());
+			expect(resposta.status).toBe(422);
+			const corpo = await resposta.json();
+			expect(corpo.erro.detalhes[0]).toMatch(/^data: não pode ser depois de hoje/);
+			expect(estado.falso.consultas).toHaveLength(0);
+		});
 	});
 });
 
@@ -204,6 +268,15 @@ describe('DELETE /api/v1/carros/{id}/abastecimentos/{abastecimentoId}', () => {
 	it('exige token', async () => {
 		preparar(() => ({ data: [], error: null }));
 		expect((await DELETE(requisicao('DELETE', undefined, null), ctxItem())).status).toBe(401);
+	});
+
+	it('retorna 500 quando o banco falha', async () => {
+		const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
+		preparar(() => ({ data: null, error: new Error('falha') }));
+		const resposta = await DELETE(requisicao('DELETE'), ctxItem());
+		expect(resposta.status).toBe(500);
+		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		espiao.mockRestore();
 	});
 });
 

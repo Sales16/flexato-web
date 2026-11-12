@@ -28,6 +28,16 @@ export function urlMalhaMunicipal(qualidade: QualidadeMalha): string {
 	return `https://servicodados.ibge.gov.br/api/v4/malhas/paises/BR?${consulta}`;
 }
 
+export const MINIMO_MUNICIPIOS = 5500;
+
+export function conferirQuantidadeMunicipios(quantidade: number, forcar: boolean): void {
+	if (quantidade === 0) throw new Error('Nenhum município para importar.');
+	if (quantidade < MINIMO_MUNICIPIOS && !forcar)
+		throw new Error(
+			`A malha trouxe só ${quantidade} municípios, abaixo do mínimo esperado de ${MINIMO_MUNICIPIOS} (o Brasil tem 5.570). Use --forcar para importar mesmo assim.`
+		);
+}
+
 export function ehQualidadeMalha(valor: string): valor is QualidadeMalha {
 	return (QUALIDADES_MALHA as readonly string[]).includes(valor);
 }
