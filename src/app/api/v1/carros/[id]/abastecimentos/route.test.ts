@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { criarSupabaseFalso, type Resolvedor } from '@/lib/testes/supabase-falso';
 
@@ -38,7 +39,7 @@ function preparar(resolver: Resolvedor, usuarioId: string | null = 'usuario-1') 
 function requisicao(metodo: string, corpo?: unknown, token: string | null = 'token') {
 	return new Request(`http://localhost/api/v1/carros/${CARRO}/abastecimentos`, {
 		method: metodo,
-		headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}) },
+		headers: { 'x-forwarded-for': randomUUID(), ...(token ? { authorization: `Bearer ${token}` } : {}), ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}) },
 		body: corpo === undefined ? undefined : JSON.stringify(corpo),
 	});
 }

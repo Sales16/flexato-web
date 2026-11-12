@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,7 +24,7 @@ const getUser = vi.fn();
 const supabase = { auth: { getUser } };
 
 function requisicao(metodo: string, { token = 'token-valido', corpo }: { token?: string | null; corpo?: unknown } = {}) {
-	const headers = new Headers({ 'content-type': 'application/json' });
+	const headers = new Headers({ 'content-type': 'application/json', 'x-forwarded-for': randomUUID() });
 	if (token) headers.set('authorization', `Bearer ${token}`);
 	return new Request('http://localhost/api/v1/carros', {
 		method: metodo,
@@ -79,22 +80,6 @@ describe('GET /api/v1/carros', () => {
 		expect(resposta.status).toBe(401);
 		expect((await resposta.json()).erro.codigo).toBe('nao_autenticado');
 	});
-
-	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
-		vi.mocked(criarCarro).mockResolvedValue(carro);
-		const comIp = () => {
-			const r = requisicao('POST', { corpo: { nome: 'Onix', consumo } });
-			r.headers.set('x-forwarded-for', '198.51.100.7');
-			return r;
-		};
-		for (let i = 0; i < ESCRITA.limite; i++) expect((await POST(comIp())).status).toBe(201);
-		getUser.mockClear();
-		const resposta = await POST(comIp());
-		expect(resposta.status).toBe(429);
-		expect(Number(resposta.headers.get('Retry-After'))).toBeGreaterThan(0);
-		expect(await resposta.json()).toEqual({ erro: { codigo: 'muitas_requisicoes', mensagem: expect.any(String) } });
-		expect(getUser).not.toHaveBeenCalled();
-	});
 });
 
 describe('POST /api/v1/carros', () => {
@@ -131,5 +116,21 @@ describe('POST /api/v1/carros', () => {
 		const resposta = await POST(requisicao('POST', { corpo: { nome: 'Onix', consumo } }));
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+	});
+
+	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
+		vi.mocked(criarCarro).mockResolvedValue(carro);
+		const comIp = () => {
+			const r = requisicao('POST', { corpo: { nome: 'Onix', consumo } });
+			r.headers.set('x-forwarded-for', '198.51.100.7');
+			return r;
+		};
+		for (let i = 0; i < ESCRITA.limite; i++) expect((await POST(comIp())).status).toBe(201);
+		getUser.mockClear();
+		const resposta = await POST(comIp());
+		expect(resposta.status).toBe(429);
+		expect(Number(resposta.headers.get('Retry-After'))).toBeGreaterThan(0);
+		expect(await resposta.json()).toEqual({ erro: { codigo: 'muitas_requisicoes', mensagem: expect.any(String) } });
+		expect(getUser).not.toHaveBeenCalled();
 	});
 });
