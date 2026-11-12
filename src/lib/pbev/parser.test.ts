@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edicaoDaTabela, lerTabelaPbev, urlTabelaMaisRecente, type ItemPdf } from './parser';
+import { contagemDivergente, edicaoDaTabela, lerTabelaPbev, urlTabelaMaisRecente, type ItemPdf } from './parser';
 
 const PAGINA = 'https://www.gov.br/inmetro/pt-br/assuntos/regulamentacao/tabelas-de-eficiencia-energetica/veiculos-automotivos-pbe-veicular';
 
@@ -220,6 +220,17 @@ describe('edicaoDaTabela', () => {
 
 	it('falha sem o ano da tabela', () => {
 		expect(() => edicaoDaTabela(resumo({ atualizacao: '14/ago/26' }))).toThrow(/Tabela Ano/);
+	});
+});
+
+describe('contagemDivergente', () => {
+	it('acusa quando as linhas flex lidas diferem do resumo do PDF', () => {
+		expect(contagemDivergente({ flexDeclarados: 310, linhasFlex: 309 })).toBe(true);
+	});
+
+	it('aceita contagem igual ao resumo ou PDF sem resumo', () => {
+		expect(contagemDivergente({ flexDeclarados: 310, linhasFlex: 310 })).toBe(false);
+		expect(contagemDivergente({ flexDeclarados: null, linhasFlex: 12 })).toBe(false);
 	});
 });
 
