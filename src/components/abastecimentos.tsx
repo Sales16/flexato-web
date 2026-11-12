@@ -317,11 +317,13 @@ function FormAbastecimento({ carroId, ultimo, aoSalvar }: { carroId: string; ult
 function ListaAbastecimentos({ carroId, itens, aoRemover }: { carroId: string; itens: AbastecimentoApi[]; aoRemover: () => void }) {
 	const avisar = useAvisos();
 	const [removendo, setRemovendo] = useState<string | null>(null);
+	const [confirmando, setConfirmando] = useState<string | null>(null);
 
 	async function remover(item: AbastecimentoApi) {
 		setRemovendo(item.id);
 		try {
 			await chamarApi(`/carros/${carroId}/abastecimentos/${item.id}`, { method: 'DELETE', autenticado: true });
+			setConfirmando(null);
 			avisar('Abastecimento removido');
 			aoRemover();
 		} catch (e) {
@@ -347,15 +349,29 @@ function ListaAbastecimentos({ carroId, itens, aoRemover }: { carroId: string; i
 						<span className={item.tanqueCheio ? 'chip ok' : 'chip'}>{item.tanqueCheio ? 'Tanque cheio' : 'Parcial'}</span>
 						{item.trecho && <span className="chip">{NOME_TRECHO[item.trecho]}</span>}
 					</span>
-					<button
-						type="button"
-						className="btn ghost small"
-						onClick={() => remover(item)}
-						disabled={removendo !== null}
-						aria-label={`Remover abastecimento de ${dataCurta(item.data)}`}
-					>
-						{removendo === item.id ? 'Removendo…' : 'Remover'}
-					</button>
+					{confirmando === item.id ? (
+						<div className="confirmar" role="group" aria-label={`Confirmar remoção do abastecimento de ${dataCurta(item.data)}`}>
+							<p>Remover o abastecimento de {dataCurta(item.data)}? O consumo medido será recalculado sem ele.</p>
+							<div className="row">
+								<button type="button" className="btn primary small" onClick={() => remover(item)} disabled={removendo !== null}>
+									{removendo === item.id ? 'Removendo…' : 'Confirmar remoção'}
+								</button>
+								<button type="button" className="btn ghost small" onClick={() => setConfirmando(null)} disabled={removendo !== null}>
+									Cancelar
+								</button>
+							</div>
+						</div>
+					) : (
+						<button
+							type="button"
+							className="btn ghost small"
+							onClick={() => setConfirmando(item.id)}
+							disabled={removendo !== null}
+							aria-label={`Remover abastecimento de ${dataCurta(item.data)}`}
+						>
+							Remover
+						</button>
+					)}
 				</li>
 			))}
 		</ul>

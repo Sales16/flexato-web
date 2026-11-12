@@ -1207,6 +1207,9 @@
 		flex-wrap: wrap;
 		align-items: center;
 	}
+	.item-abast .confirmar {
+		grid-column: 1 / -1;
+	}
 
 	@media (max-width: 880px) {
 		.calc-grid {
@@ -1256,7 +1259,7 @@
 		.item-abast .detalhes {
 			grid-area: detalhes;
 		}
-		.item-abast .btn {
+		.item-abast > .btn {
 			grid-area: acao;
 		}
 	}
