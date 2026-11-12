@@ -96,7 +96,7 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
 1. Instale as dependências: `npm install`.
 2. Copie `.env.example` para `.env.local` e preencha com os dados do projeto (Project Settings → API Keys). Gere um valor aleatório para `CRON_SECRET`.
 3. Aplique o schema e o seed. Escolha uma opção:
-   - Cole `supabase/migrations/20261111000000_schema_inicial.sql` e depois `supabase/seed.sql` no SQL Editor do Supabase.
+   - Cole os arquivos de `supabase/migrations/` em ordem (`20261111000000_schema_inicial.sql`, `20261112000000_busca_catalogo_sem_acento.sql`) e depois `supabase/seed.sql` no SQL Editor do Supabase.
    - Ou use a CLI: `npx supabase link --project-ref <ref>`, `npx supabase db push` e rode o seed no SQL Editor.
 4. Em Authentication → URL Configuration, adicione `http://localhost:3000/carros` às Redirect URLs. Para entrar com Google ou Apple, habilite os provedores em Authentication → Providers. O login por link de e-mail funciona sem configuração extra.
 5. Rode `npm run dev` e importe os preços da semana:
@@ -107,25 +107,35 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
 
 Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
 
+6. Importe o catálogo de carros da tabela PBEV do Inmetro (usa `SUPABASE_SECRET_KEY` do `.env.local`):
+
+   ```bash
+   npm run importar:pbev -- --simular   # baixa e lê o PDF, mostra o resumo e não grava nada
+   npm run importar:pbev                # grava as versões flex com fonte 'inmetro' e remove os valores de exemplo
+   ```
+
+   O script acha o PDF mais recente na página do PBE Veicular. Para outra edição, use `--url=<link do PDF>` ou `--arquivo=<caminho local>`. Só entram carros flex com consumo de cidade e estrada em etanol e gasolina; a versão inclui motor e transmissão. Rode de novo sempre que o Inmetro publicar uma tabela nova: as versões existentes são atualizadas e as de edições anteriores continuam no catálogo. Os valores de exemplo só são removidos depois que a importação grava tudo com sucesso. Se o número de linhas flex lidas for diferente do declarado no resumo do PDF, a importação é cancelada sem gravar nada (provável mudança de layout); confira com `--simular` e, se estiver certo, rode com `--forcar`.
+
 ### Scripts
 
-| Script              | O que faz                                 |
-| ------------------- | ----------------------------------------- |
-| `npm run dev`       | Servidor de desenvolvimento               |
-| `npm run build`     | Build de produção                         |
-| `npm test`          | Testes (Vitest)                           |
-| `npm run typecheck` | Gera os tipos de rota e roda o TypeScript |
-| `npm run lint`      | ESLint                                    |
-| `npm run format`    | Prettier                                  |
+| Script                  | O que faz                                    |
+| ----------------------- | -------------------------------------------- |
+| `npm run dev`           | Servidor de desenvolvimento                  |
+| `npm run build`         | Build de produção                            |
+| `npm test`              | Testes (Vitest)                              |
+| `npm run typecheck`     | Gera os tipos de rota e roda o TypeScript    |
+| `npm run lint`          | ESLint                                       |
+| `npm run format`        | Prettier                                     |
+| `npm run importar:pbev` | Importa o catálogo da tabela PBEV do Inmetro |
 
 ## Status
 
 Fatia 1 implementada: calculadora, preços da ANP por cidade/UF, garagem com login e API para o app.
 
-Próximos passos (fatia 2):
+Fatia 2 (em andamento):
 
-- Importar a tabela PBEV do Inmetro. Hoje o catálogo tem só valores de exemplo, marcados como `fonte = 'exemplo'`.
-- Localização automática com PostGIS e a malha municipal do IBGE.
+- Feito: importador da tabela PBEV do Inmetro (`npm run importar:pbev`), busca no catálogo sem acento e por relevância, e busca de carro com autocomplete na calculadora. A edição 2026 da PBEV traz 310 versões flex, das quais 299 entram no catálogo (as demais não têm consumo nos dois combustíveis ou são repetidas).
+- Pendente: localização automática com PostGIS e a malha municipal do IBGE.
 
 ## Licença
 
