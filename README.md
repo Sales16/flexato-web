@@ -77,16 +77,16 @@ Os valores do Inmetro vêm de testes padronizados e podem diferir do consumo no 
 
 Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Bearer <access_token do Supabase>`.
 
-| Método         | Rota                                 | Descrição                                                                          |
-| -------------- | ------------------------------------ | ---------------------------------------------------------------------------------- |
-| GET            | `/locais`                            | UFs e municípios com preço na semana mais recente                                  |
-| GET            | `/localizacao?lat=-23.55&lng=-46.63` | Município e UF do ponto (malha do IBGE) e a chave da ANP quando a cidade tem preço |
-| GET            | `/precos?uf=SP&municipio=SAO PAULO`  | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados       |
-| GET            | `/catalogo?q=onix&limite=50`         | Busca no catálogo de veículos                                                      |
-| POST           | `/calculo`                           | Calcula o combustível mais vantajoso                                               |
-| GET / POST     | `/carros`                            | Lista ou cria carros da garagem                                                    |
-| PATCH / DELETE | `/carros/{id}`                       | Altera ou remove um carro da garagem                                               |
-| GET            | `/jobs/precos-anp`                   | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`)      |
+| Método         | Rota                                 | Descrição                                                                                                                                   |
+| -------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET            | `/locais`                            | UFs e municípios com preço na semana mais recente                                                                                           |
+| GET            | `/localizacao?lat=-23.55&lng=-46.63` | Município e UF do ponto (malha do IBGE), a semana mais recente da ANP (ou `null` sem importação) e a chave da ANP quando a cidade tem preço |
+| GET            | `/precos?uf=SP&municipio=SAO PAULO`  | Média de etanol e gasolina da cidade, ou da UF quando a cidade não tem dados                                                                |
+| GET            | `/catalogo?q=onix&limite=50`         | Busca no catálogo de veículos                                                                                                               |
+| POST           | `/calculo`                           | Calcula o combustível mais vantajoso                                                                                                        |
+| GET / POST     | `/carros`                            | Lista ou cria carros da garagem                                                                                                             |
+| PATCH / DELETE | `/carros/{id}`                       | Altera ou remove um carro da garagem                                                                                                        |
+| GET            | `/jobs/precos-anp`                   | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`)                                                               |
 
 Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
 

@@ -14,13 +14,11 @@ export async function municipioPorPonto(admin: SupabaseClient, { lat, lng }: Coo
 	return linha ?? null;
 }
 
-export async function chaveAnpDoMunicipio(publico: SupabaseClient, uf: string, ibge: number): Promise<string | null> {
-	const semana = await semanaMaisRecente(publico);
-	if (!semana) return null;
+export async function chaveAnpDoMunicipio(publico: SupabaseClient, semanaFim: string, uf: string, ibge: number): Promise<string | null> {
 	const { data, error } = await publico
 		.from('precos_municipio')
 		.select('municipio_chave')
-		.eq('semana_fim', semana.fim)
+		.eq('semana_fim', semanaFim)
 		.eq('uf', uf)
 		.eq('municipio_ibge', ibge)
 		.limit(1)
@@ -34,6 +32,7 @@ export async function localizar(admin: SupabaseClient, publico: SupabaseClient, 
 	if (!municipio) return null;
 	const uf = municipio.uf.trim();
 	if (!ehUf(uf)) throw new Error(`UF inesperada na malha municipal: ${municipio.uf}`);
-	const chave = await chaveAnpDoMunicipio(publico, uf, municipio.codigo);
-	return { uf, municipio: { ibge: municipio.codigo, nome: municipio.nome, chave } };
+	const semana = await semanaMaisRecente(publico);
+	const chave = semana ? await chaveAnpDoMunicipio(publico, semana.fim, uf, municipio.codigo) : null;
+	return { uf, semana, municipio: { ibge: municipio.codigo, nome: municipio.nome, chave } };
 }
