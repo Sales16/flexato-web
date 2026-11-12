@@ -120,7 +120,7 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
 
 1. Instale as dependências: `npm install`.
 2. Copie `.env.example` para `.env.local` e preencha com os dados do projeto (Project Settings → API Keys). Gere um valor aleatório para `CRON_SECRET`.
-3. Aplique o schema e o seed. Escolha uma opção:
+3. Aplique o schema e o seed (só para um projeto Supabase próprio/novo; no projeto deste repositório as migrations de `supabase/migrations/` entram pela integração com o GitHub quando chegam na `main`, então não aplique à mão). Escolha uma opção:
    - Cole no SQL Editor do Supabase, nesta ordem: `supabase/migrations/20261111000000_schema_inicial.sql`, `supabase/migrations/20261112000000_busca_catalogo_sem_acento.sql`, `supabase/migrations/20261113000000_localizacao_municipios.sql`, `supabase/migrations/20261114000000_abastecimentos.sql` e `supabase/seed.sql`.
    - Ou use a CLI: `npx supabase link --project-ref <ref>`, `npx supabase db push` e rode o seed no SQL Editor.
 4. Importe a malha municipal do IBGE (usada pela localização automática):
@@ -207,7 +207,7 @@ Fatia 3 implementada: CI no GitHub Actions, testes das rotas com banco simulado,
 
 Fatia 4 implementada: localização automática. O navegador pede permissão, a posição (arredondada para 4 casas) vai só para `/api/v1/localizacao`, que encontra o município no PostGIS e não grava nada.
 
-Fatia 6 implementada: edição de carro, abastecimentos com consumo real, faixa de preço da semana e histórico de preços. A migration `20261114000000_abastecimentos.sql` precisa ser aplicada no Supabase.
+Fatia 6 implementada: edição de carro, abastecimentos com consumo real, faixa de preço da semana e histórico de preços. Inclui a migration `20261114000000_abastecimentos.sql`.
 
 ## Licença
 

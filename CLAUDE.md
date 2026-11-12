@@ -12,6 +12,8 @@ Idioma: UI, mensagens de erro da API, identificadores de código, commits, PRs e
 
 ## Comandos
 
+Existe um único projeto Supabase, que é a produção, e o `.env.local` aponta para ele. O job da ANP, os importadores sem `--simular` e qualquer escrita feita via `npm run dev` gravam na produção.
+
 ```bash
 npm run dev                  # servidor de desenvolvimento (porta 3000)
 npm run build                # build de produção
@@ -35,7 +37,7 @@ Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:
 - **API** em `src/app/api/v1/**/route.ts`. As rotas são finas: validam com zod (`src/lib/esquemas.ts`), chamam `src/lib/dados/*` e respondem com os helpers de `src/lib/api/respostas.ts`. Os erros seguem sempre `{ erro: { codigo, mensagem, detalhes? } }`. Os tipos de resposta ficam em `src/lib/tipos-api.ts`.
 - **Padrão de cada handler**: primeiro `limitar(request, LEITURA | ESCRITA)` (`src/lib/api/limite.ts`), depois um `try` envolvendo autenticação e dados, com `erroInterno(e)` no `catch`. Leia `request.headers`/`searchParams` antes de qualquer `try`. Com Cache Components, o acesso ao request interrompe o prerender lançando uma exceção; se ela for capturada pelo `try`, o build registra um erro interno falso.
 - **Autenticação**: Supabase Auth no cliente (`src/lib/supabase/navegador.ts`, PKCE, sessão no browser). A API aceita só `Authorization: Bearer <access_token>` (`src/lib/api/autenticacao.ts`) e cria um cliente Supabase com o token do usuário, de modo que o RLS do Postgres faz a autorização. Não há sessão por cookie no servidor.
-- **Três clientes Supabase no servidor** (`src/lib/supabase/servidor.ts`): `clientePublico` (publishable key, leitura de dados públicos), `clienteDoUsuario(token)` (garagem e abastecimentos) e `clienteAdmin` (secret key, usado só pelo job da ANP, pelos importadores e pela RPC de localização).
+- **Três clientes Supabase no servidor** (`src/lib/supabase/servidor.ts`): `clientePublico` (publishable key, leitura de dados públicos), `clienteDoUsuario(token)` (garagem e abastecimentos) e `clienteAdmin` (secret key, usado só pelo job da ANP, pelo importador PBEV e pela RPC de localização). O importador da malha cria o próprio cliente com `SUPABASE_SECRET_KEY`, porque roda no Node puro e não pode importar módulo `server-only`.
 - **Regra de negócio em módulos puros e testados**, sem `server-only`, para poder ser reaproveitada pelo app:
   - `calculo.ts`: custo por km ponderado pelo percentual de cidade/estrada, razão limite do carro e economia.
   - `consumo-real.ts`: método tanque cheio a tanque cheio, considerando o combustível que estava no tanque na abertura do intervalo.
@@ -54,11 +56,15 @@ Preços da ANP: `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:
 
 - **A integração do Supabase com o GitHub está ligada.** As migrations de `supabase/migrations/` são aplicadas automaticamente no projeto de produção quando chegam na `main`. Existe um único projeto Supabase, que é a produção.
   - Toda mudança de schema é uma migration nova com timestamp maior. Nunca edite uma migration já mergeada na `main`.
-  - Não aplique migrations à mão pelo SQL Editor: a integração tentaria aplicar de novo e falharia. Se isso acontecer, use `npx supabase migration repair --status applied <versão>`.
+  - Não aplique migrations à mão pelo SQL Editor nem com `npx supabase db push`: a integração tentaria aplicar de novo e falharia. Se isso acontecer, use `npx supabase migration repair --status applied <versão>`. O passo de schema do "Como rodar" do `README.md` vale só para um projeto Supabase novo, não para o deste repositório.
   - Não rode importadores sem `--simular`, nem o job da ANP, contra o banco sem necessidade: eles gravam na produção.
-- **"Expor tabelas automaticamente" está desligado** no projeto. Toda tabela nova precisa de `grant` explícito para `anon`/`authenticated`/`service_role`, além de RLS ligado com policies.
+- **"Expor tabelas automaticamente" está desligado** no projeto. Toda tabela nova precisa de RLS ligado com policies e de `grant` explícito só para os papéis que a usam:
+  - Tabela do usuário: só `authenticated` (ex.: `abastecimentos`).
+  - Dado público: `select` para `anon` e `authenticated`, escrita para `service_role` (ex.: `precos_uf`, `veiculos_catalogo`).
+  - Tabela interna: `revoke all ... from anon, authenticated` e grant só para `service_role` (ex.: `municipios_ibge`).
+  - Função nova: o Postgres dá `execute` a `public` por padrão. Faça `revoke execute on function ... from public, anon, authenticated` e depois `grant execute` só para quem chama (ex.: `municipio_por_ponto`, `importar_municipios_ibge`).
 - `supabase/seed.sql` tem 8 carros com `fonte = 'exemplo'`, que somem quando a PBEV é importada.
-- Variáveis de ambiente (`.env.example`, valores em `.env.local`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` e `CRON_SECRET`. Ao adicionar uma variável, atualize o `.env.example`.
+- Variáveis de ambiente (`.env.example`, valores em `.env.local`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` e `CRON_SECRET`. A leitura é centralizada em getters de `src/lib/env.ts`. Fora dele, só `src/lib/supabase/navegador.ts` (lê `NEXT_PUBLIC_*` no browser) e `scripts/importar-malha.mts` (Node puro) leem `process.env` direto. Ao adicionar uma variável, crie o getter em `src/lib/env.ts` e atualize o `.env.example`. Node ≥ 24 (`engines` do `package.json`).
 
 ## Front-end
 
