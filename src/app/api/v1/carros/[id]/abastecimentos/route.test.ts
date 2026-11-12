@@ -39,7 +39,11 @@ function preparar(resolver: Resolvedor, usuarioId: string | null = 'usuario-1') 
 function requisicao(metodo: string, corpo?: unknown, token: string | null = 'token') {
 	return new Request(`http://localhost/api/v1/carros/${CARRO}/abastecimentos`, {
 		method: metodo,
-		headers: { 'x-forwarded-for': randomUUID(), ...(token ? { authorization: `Bearer ${token}` } : {}), ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}) },
+		headers: {
+			'x-forwarded-for': randomUUID(),
+			...(token ? { authorization: `Bearer ${token}` } : {}),
+			...(corpo !== undefined ? { 'content-type': 'application/json' } : {}),
+		},
 		body: corpo === undefined ? undefined : JSON.stringify(corpo),
 	});
 }
