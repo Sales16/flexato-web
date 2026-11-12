@@ -7,17 +7,21 @@ afterEach(() => {
 
 describe('lerFlag', () => {
 	it('usa o padrão quando a variável não existe ou está vazia', () => {
-		expect(lerFlag(undefined)).toBe(true);
-		expect(lerFlag('  ')).toBe(true);
-		expect(lerFlag(undefined, false)).toBe(false);
+		expect(lerFlag('FLAG', undefined)).toBe(true);
+		expect(lerFlag('FLAG', '  ')).toBe(true);
+		expect(lerFlag('FLAG', undefined, false)).toBe(false);
 	});
 
 	it.each(['false', 'FALSE', '0', 'nao', 'não', 'off', ' false '])('desliga com %j', valor => {
-		expect(lerFlag(valor)).toBe(false);
+		expect(lerFlag('FLAG', valor)).toBe(false);
 	});
 
-	it.each(['true', '1', 'sim', 'on'])('liga com %j', valor => {
-		expect(lerFlag(valor, false)).toBe(true);
+	it.each(['true', 'TRUE', '1', 'sim', 'on', ' true '])('liga com %j', valor => {
+		expect(lerFlag('FLAG', valor, false)).toBe(true);
+	});
+
+	it.each(['desligado', 'no', 'disabled', 'flase', 'yes'])('lança erro citando a variável com o valor desconhecido %j', valor => {
+		expect(() => lerFlag('JOB_PRECOS_ANP_HABILITADO', valor)).toThrow(`Valor inválido para JOB_PRECOS_ANP_HABILITADO: "${valor}"`);
 	});
 });
 
@@ -38,5 +42,14 @@ describe('flags de configuração', () => {
 		expect(loginGoogleHabilitado()).toBe(false);
 		expect(loginAppleHabilitado()).toBe(true);
 		expect(jobPrecosAnpHabilitado()).toBe(false);
+	});
+
+	it.each([
+		['NEXT_PUBLIC_LOGIN_GOOGLE_HABILITADO', loginGoogleHabilitado],
+		['NEXT_PUBLIC_LOGIN_APPLE_HABILITADO', loginAppleHabilitado],
+		['JOB_PRECOS_ANP_HABILITADO', jobPrecosAnpHabilitado],
+	])('%s com valor desconhecido lança erro com o nome da variável', (nome, flag) => {
+		vi.stubEnv(nome, 'desligado');
+		expect(() => flag()).toThrow(nome);
 	});
 });

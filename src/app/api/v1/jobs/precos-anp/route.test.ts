@@ -73,6 +73,16 @@ describe('GET /api/v1/jobs/precos-anp', () => {
 		expect(importarPrecosAnp).not.toHaveBeenCalled();
 	});
 
+	it('retorna 500 sem importar quando JOB_PRECOS_ANP_HABILITADO tem valor desconhecido', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'desligado');
+		vi.mocked(importarPrecosAnp).mockResolvedValue({ status: 'ja_importado', semanaFim: '2026-11-08', arquivoUrl: 'x' });
+		const resposta = await GET(requisicao(SEGREDO));
+		expect(resposta.status).toBe(500);
+		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		expect(importarPrecosAnp).not.toHaveBeenCalled();
+		expect(console.error).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('JOB_PRECOS_ANP_HABILITADO') }));
+	});
+
 	it('exige o token mesmo com o job desabilitado', async () => {
 		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'false');
 		const resposta = await GET(requisicao('errado'));

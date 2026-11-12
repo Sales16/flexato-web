@@ -1,4 +1,9 @@
 import type { NextConfig } from 'next';
+import { jobPrecosAnpHabilitado, loginAppleHabilitado, loginGoogleHabilitado } from './src/lib/env.ts';
+
+loginGoogleHabilitado();
+loginAppleHabilitado();
+jobPrecosAnpHabilitado();
 
 const desenvolvimento = process.env.NODE_ENV === 'development';
 
