@@ -19,8 +19,16 @@ export const carroAlterarSchema = z
 	.object({
 		nome: z.string().trim().min(1, 'informe um nome').max(60, 'use até 60 caracteres').optional(),
 		consumo: consumoSchema.optional(),
+		consumoTrecho: z
+			.object({
+				combustivel: z.enum(['etanol', 'gasolina'], 'use etanol ou gasolina'),
+				trecho: z.enum(['cidade', 'estrada'], 'use cidade ou estrada'),
+				kmPorLitro,
+			})
+			.optional(),
 	})
-	.refine(v => v.nome !== undefined || v.consumo !== undefined, 'envie nome ou consumo');
+	.refine(v => v.nome !== undefined || v.consumo !== undefined || v.consumoTrecho !== undefined, 'envie nome, consumo ou consumoTrecho')
+	.refine(v => v.consumo === undefined || v.consumoTrecho === undefined, 'envie consumo ou consumoTrecho, não os dois');
 
 export const calculoSchema = z.object({
 	consumo: z.object({

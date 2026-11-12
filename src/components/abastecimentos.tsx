@@ -128,8 +128,8 @@ function Medicao({ carro, medicao: m, aoAlterarCarro }: { carro: CarroApi; medic
 		setSalvando(true);
 		setErro(null);
 		try {
-			const consumo = { ...carro.consumo, [m.combustivel]: { ...carro.consumo[m.combustivel], [m.trecho]: sugerido } };
-			const atualizado = await chamarApi<CarroApi>(`/carros/${carro.id}`, { method: 'PATCH', corpo: { consumo }, autenticado: true });
+			const consumoTrecho = { combustivel: m.combustivel, trecho: m.trecho, kmPorLitro: sugerido };
+			const atualizado = await chamarApi<CarroApi>(`/carros/${carro.id}`, { method: 'PATCH', corpo: { consumoTrecho }, autenticado: true });
 			aoAlterarCarro(atualizado);
 			setConfirmando(false);
 			avisar(`Consumo de ${nome.toLowerCase()} ${TRECHO_MEDIDO[m.trecho]} atualizado`);

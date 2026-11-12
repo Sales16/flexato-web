@@ -100,7 +100,7 @@ Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Be
 | GET            | `/catalogo?q=onix&limite=50`                             | Busca no catálogo de veículos                                                                                       |
 | POST           | `/calculo`                                               | Calcula o combustível mais vantajoso                                                                                |
 | GET / POST     | `/carros`                                                | Lista ou cria carros da garagem                                                                                     |
-| PATCH / DELETE | `/carros/{id}`                                           | Altera ou remove um carro da garagem                                                                                |
+| PATCH / DELETE | `/carros/{id}`                                           | Altera (nome, os quatro consumos ou só um deles com `consumoTrecho`) ou remove um carro da garagem                  |
 | GET / POST     | `/carros/{id}/abastecimentos`                            | Lista (com o consumo real medido) ou registra abastecimentos do carro                                               |
 | DELETE         | `/carros/{id}/abastecimentos/{abastecimentoId}`          | Remove um abastecimento                                                                                             |
 | GET            | `/jobs/precos-anp`                                       | Importa o resumo semanal da ANP (exige `Authorization: Bearer <CRON_SECRET>`)                                       |
