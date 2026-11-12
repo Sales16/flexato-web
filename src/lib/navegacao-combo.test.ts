@@ -1,10 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { chaveAoNavegar, indiceDaChave, opcaoAoConfirmar } from './navegacao-combo';
+import { acaoDaTecla, chaveAoNavegar, indiceDaChave, opcaoAoConfirmar, textoDoCampo } from './navegacao-combo';
 
 const outro = { chave: 'outro', tipo: 'outro' };
 const garagem = { chave: 'gar-1', tipo: 'garagem' };
 const onix = { chave: 'cat-1', tipo: 'catalogo' };
 const prisma = { chave: 'cat-2', tipo: 'catalogo' };
+
+describe('acaoDaTecla', () => {
+	it('mapeia setas, Enter e Escape para as ações do combo', () => {
+		expect(acaoDaTecla('ArrowDown', false)).toEqual({ tipo: 'navegar', passo: 1 });
+		expect(acaoDaTecla('ArrowUp', false)).toEqual({ tipo: 'navegar', passo: -1 });
+		expect(acaoDaTecla('Enter', false)).toEqual({ tipo: 'confirmar' });
+		expect(acaoDaTecla('Escape', false)).toEqual({ tipo: 'fechar' });
+		expect(acaoDaTecla('a', false)).toBeNull();
+	});
+
+	it('ignora as teclas enquanto o teclado está compondo um caractere (IME)', () => {
+		expect(acaoDaTecla('Enter', true)).toBeNull();
+		expect(acaoDaTecla('Escape', true)).toBeNull();
+		expect(acaoDaTecla('ArrowDown', true)).toBeNull();
+	});
+});
+
+describe('textoDoCampo', () => {
+	it('mostra o que a pessoa digita enquanto edita', () => {
+		expect(textoDoCampo(true, 'oni', 'Chevrolet ONIX LT')).toBe('oni');
+	});
+
+	it('fora da edição mostra sempre o rótulo atual, mesmo que o texto guardado seja de antes', () => {
+		expect(textoDoCampo(false, 'Outro carro (digitar consumos)', 'Chevrolet ONIX LT')).toBe('Chevrolet ONIX LT');
+	});
+});
 
 describe('indiceDaChave', () => {
 	it('acha a posição atual do item pela chave', () => {
