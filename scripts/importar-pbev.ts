@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
+import { carregarEnvOpcional } from '@/lib/env-arquivo';
 import { gravarCatalogoPbev, lerPbev, urlPbevMaisRecente, type OrigemPbev } from '@/lib/pbev/importar';
+import { contagemDivergente } from '@/lib/pbev/parser';
 import { clienteAdmin } from '@/lib/supabase/servidor';
 
 function argumento(nome: string): string | undefined {
@@ -9,9 +11,7 @@ function argumento(nome: string): string | undefined {
 }
 
 async function main() {
-	try {
-		process.loadEnvFile('.env.local');
-	} catch {}
+	carregarEnvOpcional('.env.local');
 
 	const simular = process.argv.includes('--simular');
 	const caminho = argumento('arquivo');
@@ -28,14 +28,17 @@ async function main() {
 	console.log(`Duplicadas ignoradas: ${tabela.duplicadas}`);
 	if (tabela.semConsumo.length) console.log(`Sem consumo nos dois combustíveis (ignoradas): ${tabela.semConsumo.join('; ')}`);
 	if (tabela.conflitantes.length) console.log(`Duplicadas com consumo diferente (mantida a primeira): ${tabela.conflitantes.join('; ')}`);
-	if (tabela.flexDeclarados !== null && tabela.flexDeclarados !== tabela.linhasFlex)
-		console.warn('Atenção: a contagem de linhas flex difere do resumo do PDF. Confira o layout antes de importar.');
+	const divergente = contagemDivergente(tabela);
+	if (divergente) console.warn('Atenção: a contagem de linhas flex difere do resumo do PDF. Confira o layout antes de importar.');
 
 	if (simular) {
 		console.table(tabela.veiculos.slice(0, 10));
 		console.log('Simulação: nada foi gravado.');
 		return;
 	}
+
+	if (divergente && !process.argv.includes('--forcar'))
+		throw new Error('Importação cancelada: nada foi gravado. Confira o PDF e rode de novo com --forcar para gravar mesmo assim.');
 
 	const resultado = await gravarCatalogoPbev(clienteAdmin(), tabela);
 	console.log(`Gravadas ${resultado.gravados} versões com fonte 'inmetro'. Removidas ${resultado.exemplosRemovidos} linhas de exemplo.`);

@@ -3,7 +3,7 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { chamarApi, mensagemDeErro } from '@/lib/api/cliente';
 import { normalizarBusca, palavrasDaBusca } from '@/lib/busca-catalogo';
-import { chaveAoNavegar, indiceDaChave, opcaoAoConfirmar } from '@/lib/navegacao-combo';
+import { acaoDaTecla, chaveAoNavegar, indiceDaChave, opcaoAoConfirmar, textoDoCampo } from '@/lib/navegacao-combo';
 import type { Consumo } from '@/lib/calculo';
 import { numero } from '@/lib/formato';
 import type { CarroApi, VeiculoCatalogoApi } from '@/lib/tipos-api';
@@ -40,7 +40,7 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 
 	const termo = editando ? texto.trim() : '';
 	const buscarNoCatalogo = palavrasDaBusca(termo).join('').length >= MINIMO_LETRAS;
-	const valorExibido = aberto || editando ? texto : rotuloSelecionado;
+	const valorExibido = textoDoCampo(editando, texto, rotuloSelecionado);
 
 	useEffect(() => {
 		if (!buscarNoCatalogo) return;
@@ -114,21 +114,21 @@ export function BuscaCarro({ garagem, rotuloSelecionado, aoEscolher }: Props) {
 	}
 
 	function aoTeclar(e: KeyboardEvent<HTMLInputElement>) {
-		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+		const acao = acaoDaTecla(e.key, e.nativeEvent.isComposing);
+		if (acao?.tipo === 'navegar') {
 			e.preventDefault();
-			const passo = e.key === 'ArrowDown' ? 1 : -1;
 			if (!aberto) {
 				abrir();
-				setChaveAtiva(chaveAoNavegar(opcoes, null, passo));
+				setChaveAtiva(chaveAoNavegar(opcoes, null, acao.passo));
 				return;
 			}
-			setChaveAtiva(chaveAoNavegar(opcoes, chaveAtiva, passo));
-		} else if (e.key === 'Enter') {
+			setChaveAtiva(chaveAoNavegar(opcoes, chaveAtiva, acao.passo));
+		} else if (acao?.tipo === 'confirmar') {
 			if (!aberto) return;
 			e.preventDefault();
 			const opcao = opcaoAoConfirmar(opcoes, chaveAtiva, termo);
 			if (opcao) escolher(opcao);
-		} else if (e.key === 'Escape') {
+		} else if (acao?.tipo === 'fechar') {
 			if (aberto) {
 				e.preventDefault();
 				fechar();

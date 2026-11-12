@@ -11,8 +11,10 @@ import {
 } from '../src/lib/localizacao/malha.ts';
 
 const TAMANHO_LOTE = 100;
-async function baixar(url: string): Promise<{ texto: string; bytes: number }> {
-	const resposta = await buscar(url);
+const TEMPO_LIMITE_MALHA_MS = 300_000;
+
+async function baixar(url: string, tempoLimiteMs?: number): Promise<{ texto: string; bytes: number }> {
+	const resposta = await buscar(url, { tempoLimiteMs });
 	const buffer = Buffer.from(await resposta.arrayBuffer());
 	return { texto: buffer.toString('utf8'), bytes: buffer.length };
 }
@@ -33,7 +35,7 @@ async function principal() {
 
 	const urlMalha = urlMalhaMunicipal(values.qualidade);
 	console.log(`Baixando malha municipal (${values.qualidade}): ${urlMalha}`);
-	const malha = await baixar(urlMalha);
+	const malha = await baixar(urlMalha, TEMPO_LIMITE_MALHA_MS);
 	console.log(`Malha baixada: ${megabytes(malha.bytes)}`);
 	const localidades = await baixar(URL_MUNICIPIOS_IBGE);
 

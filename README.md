@@ -125,7 +125,7 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
    npm run importar:pbev                # grava as versões flex com fonte 'inmetro' e remove os valores de exemplo
    ```
 
-   O script acha o PDF mais recente na página do PBE Veicular. Para outra edição, use `--url=<link do PDF>` ou `--arquivo=<caminho local>`. Só entram carros flex com consumo de cidade e estrada em etanol e gasolina; a versão inclui motor e transmissão. Rode de novo sempre que o Inmetro publicar uma tabela nova: as versões existentes são atualizadas e as de edições anteriores continuam no catálogo. Os valores de exemplo só são removidos depois que a importação grava tudo com sucesso.
+   O script acha o PDF mais recente na página do PBE Veicular. Para outra edição, use `--url=<link do PDF>` ou `--arquivo=<caminho local>`. Só entram carros flex com consumo de cidade e estrada em etanol e gasolina; a versão inclui motor e transmissão. Rode de novo sempre que o Inmetro publicar uma tabela nova: as versões existentes são atualizadas e as de edições anteriores continuam no catálogo. Os valores de exemplo só são removidos depois que a importação grava tudo com sucesso. Se o número de linhas flex lidas for diferente do declarado no resumo do PDF, a importação é cancelada sem gravar nada (provável mudança de layout); confira com `--simular` e, se estiver certo, rode com `--forcar`.
 
 ### Scripts
 

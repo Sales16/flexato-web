@@ -1,5 +1,20 @@
 export type ItemCombo = { chave: string; tipo: string };
 
+export type AcaoTecla = { tipo: 'navegar'; passo: 1 | -1 } | { tipo: 'confirmar' } | { tipo: 'fechar' };
+
+export function acaoDaTecla(tecla: string, compondo: boolean): AcaoTecla | null {
+	if (compondo) return null;
+	if (tecla === 'ArrowDown') return { tipo: 'navegar', passo: 1 };
+	if (tecla === 'ArrowUp') return { tipo: 'navegar', passo: -1 };
+	if (tecla === 'Enter') return { tipo: 'confirmar' };
+	if (tecla === 'Escape') return { tipo: 'fechar' };
+	return null;
+}
+
+export function textoDoCampo(editando: boolean, texto: string, rotuloSelecionado: string): string {
+	return editando ? texto : rotuloSelecionado;
+}
+
 export function indiceDaChave(opcoes: readonly ItemCombo[], chave: string | null): number {
 	return chave === null ? -1 : opcoes.findIndex(o => o.chave === chave);
 }
