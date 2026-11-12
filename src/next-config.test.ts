@@ -13,6 +13,22 @@ async function politicaConteudo() {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('next.config', () => {
+	it('carrega com as flags ausentes ou válidas', async () => {
+		vi.stubEnv('VERCEL_ENV', '');
+		vi.stubEnv('NEXT_PUBLIC_LOGIN_GOOGLE_HABILITADO', undefined);
+		vi.stubEnv('NEXT_PUBLIC_LOGIN_APPLE_HABILITADO', 'false');
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'sim');
+		await expect(carregar()).resolves.toBeDefined();
+	});
+
+	it.each(['NEXT_PUBLIC_LOGIN_GOOGLE_HABILITADO', 'NEXT_PUBLIC_LOGIN_APPLE_HABILITADO', 'JOB_PRECOS_ANP_HABILITADO'])(
+		'quebra o build quando %s tem valor desconhecido',
+		async nome => {
+			vi.stubEnv(nome, 'desligado');
+			await expect(carregar()).rejects.toThrow(`Valor inválido para ${nome}`);
+		}
+	);
+
 	it('libera a origem do Supabase no connect-src', async () => {
 		vi.stubEnv('VERCEL_ENV', 'production');
 		vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://abc.supabase.co/rest/v1');
@@ -29,5 +45,12 @@ describe('next.config', () => {
 		vi.stubEnv('VERCEL_ENV', ambiente);
 		vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
 		expect(await politicaConteudo()).toContain("connect-src 'self';");
+	});
+
+	it('quebra o build de produção com flag inválida mesmo com a URL do Supabase válida', async () => {
+		vi.stubEnv('VERCEL_ENV', 'production');
+		vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://abc.supabase.co');
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'talvez');
+		await expect(carregar()).rejects.toThrow('Valor inválido para JOB_PRECOS_ANP_HABILITADO');
 	});
 });

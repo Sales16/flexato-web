@@ -19,6 +19,7 @@ function requisicao(token: string | null, consulta = '') {
 beforeEach(() => {
 	vi.resetAllMocks();
 	vi.spyOn(console, 'error').mockImplementation(() => {});
+	vi.spyOn(console, 'warn').mockImplementation(() => {});
 	vi.mocked(clienteAdmin).mockReturnValue(admin as never);
 	vi.stubEnv('CRON_SECRET', SEGREDO);
 });
@@ -63,5 +64,36 @@ describe('GET /api/v1/jobs/precos-anp', () => {
 		const resposta = await GET(requisicao(SEGREDO));
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+	});
+
+	it('não importa quando o job está desabilitado, mesmo com forcar=1', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'false');
+		const resposta = await GET(requisicao(SEGREDO, '?forcar=1'));
+		expect(resposta.status).toBe(200);
+		expect(await resposta.json()).toEqual({ status: 'desabilitado' });
+		expect(importarPrecosAnp).not.toHaveBeenCalled();
+	});
+
+	it('avisa no log quando o job está desabilitado', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'false');
+		await GET(requisicao(SEGREDO));
+		expect(console.warn).toHaveBeenCalledWith('job precos-anp desabilitado por JOB_PRECOS_ANP_HABILITADO');
+	});
+
+	it('retorna 500 sem importar quando JOB_PRECOS_ANP_HABILITADO tem valor desconhecido', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'desligado');
+		vi.mocked(importarPrecosAnp).mockResolvedValue({ status: 'ja_importado', semanaFim: '2026-11-08', arquivoUrl: 'x' });
+		const resposta = await GET(requisicao(SEGREDO));
+		expect(resposta.status).toBe(500);
+		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		expect(importarPrecosAnp).not.toHaveBeenCalled();
+		expect(console.error).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('JOB_PRECOS_ANP_HABILITADO') }));
+	});
+
+	it('exige o token mesmo com o job desabilitado', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'false');
+		const resposta = await GET(requisicao('errado'));
+		expect(resposta.status).toBe(401);
+		expect(importarPrecosAnp).not.toHaveBeenCalled();
 	});
 });
