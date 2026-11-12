@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buscar, emLotes } from './http-externo';
+import { buscar, emLotes, TEMPO_LIMITE_PADRAO_MS } from './http-externo';
 
 afterEach(() => {
 	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
 });
 
 describe('buscar', () => {
@@ -16,7 +17,31 @@ describe('buscar', () => {
 		expect(fetchMock).toHaveBeenCalledWith('https://exemplo.gov.br/dados', {
 			headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Flexato/1.0)' },
 			cache: 'no-store',
+			signal: expect.any(AbortSignal),
 		});
+	});
+
+	it('usa o tempo limite padrão quando a chamada não define outro', async () => {
+		const timeout = vi.spyOn(AbortSignal, 'timeout');
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('ok')));
+
+		await buscar('https://exemplo.gov.br/dados');
+
+		expect(TEMPO_LIMITE_PADRAO_MS).toBe(60_000);
+		expect(timeout).toHaveBeenCalledWith(TEMPO_LIMITE_PADRAO_MS);
+	});
+
+	it('aceita tempo limite por chamada e aborta o download que passa dele', async () => {
+		const fetchMock = vi.fn(
+			(_url: string, init: RequestInit) =>
+				new Promise<Response>((_resolver, rejeitar) => {
+					init.signal?.addEventListener('abort', () => rejeitar(init.signal?.reason));
+				})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(buscar('https://exemplo.gov.br/lento', { tempoLimiteMs: 10 })).rejects.toThrow();
+		expect((fetchMock.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
 	});
 
 	it('falha com a URL e o status quando a resposta não é ok', async () => {

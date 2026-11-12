@@ -27,6 +27,11 @@ function mensagemDaFalha(e: unknown): { mensagem: string; repetir: boolean } {
 	return { mensagem: ERRO_API, repetir: true };
 }
 
+function avisoSemPrecoDaCidade(local: LocalizacaoApi): string {
+	if (!local.semana) return 'Ainda não há preços da ANP importados. Você vai digitar os preços do posto.';
+	return `A ANP não pesquisou preços nessa cidade na última semana. Vamos usar a média de ${UFS[local.uf]}.`;
+}
+
 type Props = { aoConfirmar: (uf: Uf, municipioChave: string) => void; idCidade: string };
 
 export function LocalizacaoAutomatica({ aoConfirmar, idCidade }: Props) {
@@ -120,9 +125,7 @@ export function LocalizacaoAutomatica({ aoConfirmar, idCidade }: Props) {
 								</b>
 								?
 							</p>
-							{!estado.local.municipio.chave && (
-								<p className="hint">A ANP não pesquisou preços nessa cidade na última semana. Vamos usar a média de {UFS[estado.local.uf]}.</p>
-							)}
+							{!estado.local.municipio.chave && <p className="hint">{avisoSemPrecoDaCidade(estado.local)}</p>}
 							<div className="row">
 								<button type="button" className="btn primary small" onClick={() => confirmar(estado.local)}>
 									Confirmar

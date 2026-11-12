@@ -1,11 +1,20 @@
 import { parseArgs } from 'node:util';
 import { createClient } from '@supabase/supabase-js';
 import { buscar, emLotes, URL_MUNICIPIOS_IBGE } from '../src/lib/http-externo.ts';
-import { ehQualidadeMalha, montarMunicipios, urlMalhaMunicipal, type ColecaoMalha, type MunicipioLocalidade } from '../src/lib/localizacao/malha.ts';
+import {
+	conferirQuantidadeMunicipios,
+	ehQualidadeMalha,
+	montarMunicipios,
+	urlMalhaMunicipal,
+	type ColecaoMalha,
+	type MunicipioLocalidade,
+} from '../src/lib/localizacao/malha.ts';
 
 const TAMANHO_LOTE = 100;
-async function baixar(url: string): Promise<{ texto: string; bytes: number }> {
-	const resposta = await buscar(url);
+const TEMPO_LIMITE_MALHA_MS = 300_000;
+
+async function baixar(url: string, tempoLimiteMs?: number): Promise<{ texto: string; bytes: number }> {
+	const resposta = await buscar(url, { tempoLimiteMs });
 	const buffer = Buffer.from(await resposta.arrayBuffer());
 	return { texto: buffer.toString('utf8'), bytes: buffer.length };
 }
@@ -19,13 +28,14 @@ async function principal() {
 		options: {
 			qualidade: { type: 'string', default: 'intermediaria' },
 			simular: { type: 'boolean', default: false },
+			forcar: { type: 'boolean', default: false },
 		},
 	});
 	if (!ehQualidadeMalha(values.qualidade)) throw new Error('Use --qualidade=minima, intermediaria ou maxima.');
 
 	const urlMalha = urlMalhaMunicipal(values.qualidade);
 	console.log(`Baixando malha municipal (${values.qualidade}): ${urlMalha}`);
-	const malha = await baixar(urlMalha);
+	const malha = await baixar(urlMalha, TEMPO_LIMITE_MALHA_MS);
 	console.log(`Malha baixada: ${megabytes(malha.bytes)}`);
 	const localidades = await baixar(URL_MUNICIPIOS_IBGE);
 
@@ -37,7 +47,7 @@ async function principal() {
 	if (semNome.length) console.warn(`Na malha, mas fora da lista de localidades (ignorados): ${semNome.join(', ')}`);
 	if (semGeometria.length) console.warn(`Na lista de localidades, mas sem geometria: ${semGeometria.join(', ')}`);
 	if (invalidos.length) console.warn(`Feições inválidas ignoradas: ${invalidos.join(', ')}`);
-	if (!municipios.length) throw new Error('Nenhum município para importar.');
+	conferirQuantidadeMunicipios(municipios.length, values.forcar);
 
 	if (values.simular) {
 		console.log('Simulação: nada foi gravado no banco.');

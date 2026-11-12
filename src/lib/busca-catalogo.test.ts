@@ -34,17 +34,19 @@ describe('ordenarPorRelevancia', () => {
 	it('valoriza o modelo acima da marca e da versão', () => {
 		const lista = [carro('Fiat', 'ARGO', 'DRIVE 1.0'), carro('Hyundai', 'HB20', 'Comfort 1.0-12V'), carro('Hyundai', 'CRETA', 'HB20 1.0')];
 		expect(ordenarPorRelevancia(lista, 'hb20').map(i => i.modelo)).toEqual(['HB20', 'CRETA', 'ARGO']);
+		const parciais = [carro('Citroën', 'C3', 'Feel 1.0'), carro('Fiat', 'STRADA', 'CITY 1.4'), carro('Honda', 'CITY', 'EXL 1.5')];
+		expect(ordenarPorRelevancia(parciais, 'cit').map(i => i.modelo)).toEqual(['CITY', 'C3', 'STRADA']);
 	});
 
 	it('ignora acentos e mantém a ordem original no empate', () => {
-		const lista = [carro('Citroën', 'C3', 'Feel 1.0'), carro('Citroën', 'BASALT', 'Shine 1.0T'), carro('Fiat', 'MOBI', 'LIKE')];
+		const lista = [carro('Fiat', 'MOBI', 'LIKE'), carro('Citroën', 'C3', 'Feel 1.0'), carro('Citroën', 'BASALT', 'Shine 1.0T')];
 		expect(ordenarPorRelevancia(lista, 'citroen').map(i => i.modelo)).toEqual(['C3', 'BASALT', 'MOBI']);
 	});
 
 	it('soma a pontuação de várias palavras', () => {
 		const lista = [carro('Toyota', 'COROLLA', 'GLI HEV 1.8 16V CVT'), carro('Toyota', 'COROLLA CROSS', 'XRX HYBRID 1.8-16V CVT')];
-		expect(ordenarPorRelevancia(lista, 'corolla cross').map(i => i.modelo)).toEqual(['COROLLA CROSS', 'COROLLA']);
-		expect(ordenarPorRelevancia(lista, 'corolla hev').map(i => i.modelo)).toEqual(['COROLLA', 'COROLLA CROSS']);
+		expect(ordenarPorRelevancia(lista, 'cross corolla').map(i => i.modelo)).toEqual(['COROLLA CROSS', 'COROLLA']);
+		expect(ordenarPorRelevancia([...lista].reverse(), 'hev corolla').map(i => i.modelo)).toEqual(['COROLLA', 'COROLLA CROSS']);
 	});
 
 	it('não reordena quando a busca está vazia', () => {

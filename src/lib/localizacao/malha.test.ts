@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ehQualidadeMalha, montarMunicipios, urlMalhaMunicipal, type ColecaoMalha, type FeicaoMalha, type MunicipioLocalidade } from './malha';
+import {
+	conferirQuantidadeMunicipios,
+	ehQualidadeMalha,
+	montarMunicipios,
+	urlMalhaMunicipal,
+	type ColecaoMalha,
+	type FeicaoMalha,
+	type MunicipioLocalidade,
+} from './malha';
 
 const quadrado = {
 	type: 'Polygon' as const,
@@ -83,5 +91,24 @@ describe('montarMunicipios', () => {
 
 	it('falha quando a resposta não é um FeatureCollection', () => {
 		expect(() => montarMunicipios({ type: 'Feature' } as never, localidades)).toThrow(/FeatureCollection/);
+	});
+});
+
+describe('conferirQuantidadeMunicipios', () => {
+	it('aceita a malha completa', () => {
+		expect(() => conferirQuantidadeMunicipios(5570, false)).not.toThrow();
+		expect(() => conferirQuantidadeMunicipios(5500, false)).not.toThrow();
+	});
+
+	it('recusa malha incompleta sem --forcar', () => {
+		expect(() => conferirQuantidadeMunicipios(5499, false)).toThrow(/5499 municípios.*--forcar/);
+	});
+
+	it('aceita malha incompleta com --forcar', () => {
+		expect(() => conferirQuantidadeMunicipios(120, true)).not.toThrow();
+	});
+
+	it('recusa malha vazia mesmo com --forcar', () => {
+		expect(() => conferirQuantidadeMunicipios(0, true)).toThrow('Nenhum município para importar.');
 	});
 });
