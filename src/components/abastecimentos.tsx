@@ -98,7 +98,7 @@ function ConsumoMedidoCarro({ carro, dados, aoAlterarCarro }: { carro: CarroApi;
 			) : (
 				<div className="medicoes">
 					{medicoes.map(m => (
-						<Medicao key={`${m.combustivel}-${m.trecho}`} carro={carro} medicao={m} aoAlterarCarro={aoAlterarCarro} />
+						<Medicao key={`${m.combustivel}-${m.trecho}-${umaCasa(m.kmPorLitro)}`} carro={carro} medicao={m} aoAlterarCarro={aoAlterarCarro} />
 					))}
 				</div>
 			)}
