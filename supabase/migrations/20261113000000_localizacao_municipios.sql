@@ -1,5 +1,19 @@
 create schema if not exists extensions;
 create extension if not exists postgis with schema extensions;
+
+do $$
+declare
+	esquema name;
+begin
+	select n.nspname into esquema
+	from pg_catalog.pg_extension e
+	join pg_catalog.pg_namespace n on n.oid = e.extnamespace
+	where e.extname = 'postgis';
+	if esquema is distinct from 'extensions' then
+		raise exception 'O PostGIS está instalado no schema %, mas esta migration usa extensions.geometry e as funções extensions.st_*. Ajuste a migration para o schema atual antes de rodar.', coalesce(esquema::text, '(nenhum)');
+	end if;
+end
+$$;
 grant usage on schema extensions to service_role;
 
 create table public.municipios_ibge (
@@ -25,10 +39,14 @@ stable
 security invoker
 set search_path = ''
 as $$
+	with ponto as (
+		select extensions.st_setsrid(extensions.st_makepoint(lng, lat), 4326) as geom
+	)
 	select m.codigo, m.nome, m.uf
 	from public.municipios_ibge m
-	where extensions.st_dwithin(m.geom, extensions.st_setsrid(extensions.st_makepoint(lng, lat), 4326), 0.02)
-	order by m.geom operator(extensions.<->) extensions.st_setsrid(extensions.st_makepoint(lng, lat), 4326)
+	cross join ponto p
+	where extensions.st_dwithin(m.geom, p.geom, 0.02)
+	order by extensions.st_covers(m.geom, p.geom) desc, m.geom operator(extensions.<->) p.geom, m.codigo
 	limit 1;
 $$;
 
