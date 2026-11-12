@@ -64,4 +64,19 @@ describe('GET /api/v1/jobs/precos-anp', () => {
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
 	});
+
+	it('não importa quando o job está desabilitado, mesmo com forcar=1', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'false');
+		const resposta = await GET(requisicao(SEGREDO, '?forcar=1'));
+		expect(resposta.status).toBe(200);
+		expect(await resposta.json()).toEqual({ status: 'desabilitado' });
+		expect(importarPrecosAnp).not.toHaveBeenCalled();
+	});
+
+	it('exige o token mesmo com o job desabilitado', async () => {
+		vi.stubEnv('JOB_PRECOS_ANP_HABILITADO', 'false');
+		const resposta = await GET(requisicao('errado'));
+		expect(resposta.status).toBe(401);
+		expect(importarPrecosAnp).not.toHaveBeenCalled();
+	});
 });

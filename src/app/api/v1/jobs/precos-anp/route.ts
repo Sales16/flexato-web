@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { importarPrecosAnp } from '@/lib/anp/importar';
 import { tokenBearer } from '@/lib/api/autenticacao';
 import { erro, erroInterno } from '@/lib/api/respostas';
-import { cronSecret } from '@/lib/env';
+import { cronSecret, jobPrecosAnpHabilitado } from '@/lib/env';
 import { clienteAdmin } from '@/lib/supabase/servidor';
 
 export const maxDuration = 60;
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 	const forcar = request.nextUrl.searchParams.get('forcar') === '1';
 	try {
 		if (!autorizado(token)) return erro(401, 'nao_autorizado', 'Token do job inválido.');
+		if (!jobPrecosAnpHabilitado()) return Response.json({ status: 'desabilitado' });
 		const resultado = await importarPrecosAnp(clienteAdmin(), { forcar });
 		return Response.json(resultado);
 	} catch (e) {

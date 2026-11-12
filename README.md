@@ -151,6 +151,18 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
 
 Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
 
+### Configurações liga/desliga
+
+Três variáveis opcionais ligam ou desligam partes do sistema. Sem a variável, a parte fica habilitada; `false`, `0`, `nao`, `não` ou `off` desligam.
+
+| Variável                              | O que desliga                                                                                                                                                    |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_LOGIN_GOOGLE_HABILITADO` | Botão "Continuar com Google" na tela de login                                                                                                                    |
+| `NEXT_PUBLIC_LOGIN_APPLE_HABILITADO`  | Botão "Continuar com Apple" na tela de login                                                                                                                     |
+| `JOB_PRECOS_ANP_HABILITADO`           | Importação de preços da ANP: a rota do job ainda exige o `CRON_SECRET`, mas responde `{ "status": "desabilitado" }` sem importar nada, inclusive com `?forcar=1` |
+
+As variáveis `NEXT_PUBLIC_*` são lidas no build: depois de mudar, reinicie o `npm run dev` ou faça um novo deploy. A do job é lida a cada chamada. O `.env.example` vem com os dois logins desligados, porque os provedores Google e Apple precisam ser configurados no Supabase antes.
+
 ### Scripts
 
 | Script                   | O que faz                                        |
@@ -175,6 +187,9 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Chave publishable                                                    |
    | `SUPABASE_SECRET_KEY`                  | Chave secret (só no servidor; nunca use prefixo `NEXT_PUBLIC_`)      |
    | `CRON_SECRET`                          | Valor aleatório longo, por exemplo a saída de `openssl rand -hex 32` |
+   | `NEXT_PUBLIC_LOGIN_GOOGLE_HABILITADO`  | `false` esconde o botão "Continuar com Google" (padrão: habilitado)  |
+   | `NEXT_PUBLIC_LOGIN_APPLE_HABILITADO`   | `false` esconde o botão "Continuar com Apple" (padrão: habilitado)   |
+   | `JOB_PRECOS_ANP_HABILITADO`            | `false` desliga o job da ANP (padrão: habilitado)                    |
 
    As variáveis `NEXT_PUBLIC_*` entram no bundle e na política de segurança (CSP) durante o build. Se mudar alguma delas, faça um novo deploy.
 

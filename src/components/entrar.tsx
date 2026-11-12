@@ -2,10 +2,16 @@
 
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
+import { loginAppleHabilitado, loginGoogleHabilitado } from '@/lib/env';
 import { supabaseNavegador } from '@/lib/supabase/navegador';
 import { useSessao } from './provedor-sessao';
 
 type Provedor = 'google' | 'apple';
+
+const PROVEDORES: { id: Provedor; rotulo: string }[] = [
+	...(loginGoogleHabilitado() ? [{ id: 'google' as const, rotulo: 'Continuar com Google' }] : []),
+	...(loginAppleHabilitado() ? [{ id: 'apple' as const, rotulo: 'Continuar com Apple' }] : []),
+];
 
 function destino(): string {
 	return `${window.location.origin}/carros`;
@@ -20,7 +26,7 @@ export function Entrar() {
 
 	async function entrarCom(provedor: Provedor) {
 		const supabase = supabaseNavegador();
-		if (!supabase) return;
+		if (!supabase || !PROVEDORES.some(p => p.id === provedor)) return;
 		setErro(null);
 		const { error } = await supabase.auth.signInWithOAuth({ provider: provedor, options: { redirectTo: destino() } });
 		if (error) setErro('Não foi possível iniciar o login. Tente novamente.');
@@ -75,13 +81,12 @@ export function Entrar() {
 				) : (
 					<>
 						<p className="hint">Seus carros ficam disponíveis no site e no aplicativo. O cálculo continua funcionando sem conta.</p>
-						<button type="button" className="btn block" onClick={() => entrarCom('google')}>
-							Continuar com Google
-						</button>
-						<button type="button" className="btn block" onClick={() => entrarCom('apple')}>
-							Continuar com Apple
-						</button>
-						<div className="or">ou</div>
+						{PROVEDORES.map(p => (
+							<button key={p.id} type="button" className="btn block" onClick={() => entrarCom(p.id)}>
+								{p.rotulo}
+							</button>
+						))}
+						{PROVEDORES.length > 0 && <div className="or">ou</div>}
 						<form className="form-stack" onSubmit={enviarLink} noValidate>
 							<div className="field">
 								<label htmlFor="email-login">E-mail</label>
