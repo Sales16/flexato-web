@@ -7,11 +7,12 @@ export const PAGINA_PBEV =
 	'https://www.gov.br/inmetro/pt-br/assuntos/regulamentacao/avaliacao-da-conformidade/programa-brasileiro-de-etiquetagem/tabelas-de-eficiencia-energetica/veiculos-automotivos-pbe-veicular';
 const CABECALHOS = { 'User-Agent': 'Mozilla/5.0 (compatible; Flexato/1.0)' };
 const TAMANHO_LOTE = 200;
+const TEMPO_LIMITE_MS = 60_000;
 
 export type OrigemPbev = { url: string } | { arquivo: Uint8Array; nome: string };
 
 async function buscar(url: string): Promise<Response> {
-	const resposta = await fetch(url, { headers: CABECALHOS, cache: 'no-store' });
+	const resposta = await fetch(url, { headers: CABECALHOS, cache: 'no-store', signal: AbortSignal.timeout(TEMPO_LIMITE_MS) });
 	if (!resposta.ok) throw new Error(`Falha ao baixar ${url}: HTTP ${resposta.status}`);
 	return resposta;
 }
