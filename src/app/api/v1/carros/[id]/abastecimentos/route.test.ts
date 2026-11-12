@@ -104,6 +104,26 @@ describe('GET /api/v1/carros/{id}/abastecimentos', () => {
 		expect(consulta.usou('eq')?.args).toEqual(['carro_id', CARRO]);
 	});
 
+	it('pagina a lista para não perder os abastecimentos mais recentes no limite de linhas do PostgREST', async () => {
+		const primeiraPagina = Array.from({ length: 1000 }, (_, i) =>
+			linha({ id: `a${i}`, data: '2026-01-01', hodometro_km: 10000 + i * 10, tanque_cheio: false })
+		);
+		const recente = linha({ id: 'recente', data: '2026-10-10', hodometro_km: 30000 });
+		preparar(c => {
+			if (c.tabela === 'carros') return { data: { id: CARRO }, error: null };
+			const [inicio, fim] = (c.usou('range')?.args ?? [0, 999]) as [number, number];
+			return { data: [...primeiraPagina, recente].slice(inicio, fim + 1), error: null };
+		});
+		const corpo = await (await GET(requisicao('GET'), ctx())).json();
+		expect(corpo.itens).toHaveLength(1001);
+		expect(corpo.itens.at(-1).id).toBe('recente');
+		const paginas = estado.falso.consultas.filter(c => c.tabela === 'abastecimentos').map(c => c.usou('range')?.args);
+		expect(paginas).toEqual([
+			[0, 999],
+			[1000, 1999],
+		]);
+	});
+
 	it('retorna 500 quando o banco falha', async () => {
 		const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
 		preparar(c => (c.tabela === 'carros' ? { data: { id: CARRO }, error: null } : { data: null, error: new Error('falha') }));

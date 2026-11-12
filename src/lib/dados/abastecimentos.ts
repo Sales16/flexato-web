@@ -18,6 +18,8 @@ type LinhaAbastecimento = {
 	criado_em: string;
 };
 
+const TAMANHO_PAGINA = 1000;
+
 const COLUNAS = 'id, carro_id, data, combustivel, litros, hodometro_km, preco_litro, tanque_cheio, trecho, criado_em';
 
 function paraApi(l: LinhaAbastecimento): AbastecimentoApi {
@@ -42,15 +44,22 @@ export async function carroExiste(supabase: SupabaseClient, carroId: string): Pr
 }
 
 export async function listarAbastecimentos(supabase: SupabaseClient, carroId: string): Promise<AbastecimentoApi[]> {
-	const { data, error } = await supabase
-		.from('abastecimentos')
-		.select(COLUNAS)
-		.eq('carro_id', carroId)
-		.order('data')
-		.order('hodometro_km')
-		.order('criado_em');
-	if (error) throw error;
-	return (data as LinhaAbastecimento[]).map(paraApi);
+	const linhas: LinhaAbastecimento[] = [];
+	for (let inicio = 0; ; inicio += TAMANHO_PAGINA) {
+		const { data, error } = await supabase
+			.from('abastecimentos')
+			.select(COLUNAS)
+			.eq('carro_id', carroId)
+			.order('data')
+			.order('hodometro_km')
+			.order('criado_em')
+			.order('id')
+			.range(inicio, inicio + TAMANHO_PAGINA - 1);
+		if (error) throw error;
+		linhas.push(...(data as LinhaAbastecimento[]));
+		if (data.length < TAMANHO_PAGINA) break;
+	}
+	return linhas.map(paraApi);
 }
 
 export async function criarAbastecimento(supabase: SupabaseClient, carroId: string, entrada: AbastecimentoCriar): Promise<AbastecimentoApi> {
