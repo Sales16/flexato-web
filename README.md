@@ -146,7 +146,7 @@ Fatia 1 implementada: calculadora, preços da ANP por cidade/UF, garagem com log
 
 Fatia 2 implementada: importador da tabela PBEV do Inmetro (`npm run importar:pbev`), busca no catálogo sem acento e por relevância, e busca de carro com autocomplete na calculadora. A edição 2026 da PBEV traz 310 versões flex, das quais 299 entram no catálogo (as demais não têm consumo nos dois combustíveis ou são repetidas).
 
-Fatia 4 implementada: localização automática. O navegador pede permissão, a posição (arredondada para 4 casas) vai só para `/api/v1/localizacao`, que encontra o município no PostGIS e não grava nada.
+Fatia 4 implementada: localização automática. O navegador pede permissão, a posição, arredondada para 3 casas decimais (cerca de 110 m), vai só para `/api/v1/localizacao`, que encontra o município no PostGIS. A rota não grava a posição no banco, mas ela segue na query string e pode aparecer nos logs de acesso da hospedagem.
 
 ## Licença
 
