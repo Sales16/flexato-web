@@ -3,15 +3,11 @@
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { loginAppleHabilitado, loginGoogleHabilitado } from '@/lib/env';
+import { provedoresLogin, type ProvedorLogin } from '@/lib/provedores-login';
 import { supabaseNavegador } from '@/lib/supabase/navegador';
 import { useSessao } from './provedor-sessao';
 
-type Provedor = 'google' | 'apple';
-
-const PROVEDORES: { id: Provedor; rotulo: string }[] = [
-	...(loginGoogleHabilitado() ? [{ id: 'google' as const, rotulo: 'Continuar com Google' }] : []),
-	...(loginAppleHabilitado() ? [{ id: 'apple' as const, rotulo: 'Continuar com Apple' }] : []),
-];
+const PROVEDORES = provedoresLogin({ google: loginGoogleHabilitado(), apple: loginAppleHabilitado() });
 
 function destino(): string {
 	return `${window.location.origin}/carros`;
@@ -24,7 +20,7 @@ export function Entrar() {
 	const [erro, setErro] = useState<string | null>(null);
 	const [ocupado, setOcupado] = useState(false);
 
-	async function entrarCom(provedor: Provedor) {
+	async function entrarCom(provedor: ProvedorLogin) {
 		const supabase = supabaseNavegador();
 		if (!supabase || !PROVEDORES.some(p => p.id === provedor)) return;
 		setErro(null);
