@@ -1,10 +1,13 @@
 import type { NextRequest } from 'next/server';
+import { LEITURA, limitar } from '@/lib/api/limite';
 import { buscarPrecos } from '@/lib/dados/precos';
 import { erro, erroInterno } from '@/lib/api/respostas';
 import { clientePublico } from '@/lib/supabase/servidor';
 import { ehUf, normalizarNome } from '@/lib/ufs';
 
 export async function GET(request: NextRequest) {
+	const bloqueio = limitar(request, LEITURA);
+	if (bloqueio) return bloqueio;
 	const uf = (request.nextUrl.searchParams.get('uf') ?? '').toUpperCase();
 	const municipio = request.nextUrl.searchParams.get('municipio');
 	if (!ehUf(uf)) return erro(400, 'uf_invalida', 'Informe uma UF válida, por exemplo uf=SP.');

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { criarSupabaseFalso } from '@/lib/testes/supabase-falso';
 
@@ -25,7 +26,7 @@ const LINHA = {
 const requisicao = (corpo: unknown) =>
 	new Request(`http://localhost/api/v1/carros/${CARRO}`, {
 		method: 'PATCH',
-		headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+		headers: { authorization: 'Bearer token', 'content-type': 'application/json', 'x-forwarded-for': randomUUID() },
 		body: JSON.stringify(corpo),
 	});
 

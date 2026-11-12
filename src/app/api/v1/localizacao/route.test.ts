@@ -135,3 +135,15 @@ describe('GET /api/v1/localizacao', () => {
 		expect(resposta.status).toBe(500);
 	});
 });
+
+describe('limite de requisições da localização', () => {
+	it('retorna 429 sem cache quando o IP passa do limite de leitura', async () => {
+		const { LEITURA } = await import('@/lib/api/limite');
+		const comIp = () => new NextRequest('http://localhost/api/v1/localizacao?lat=x&lng=y', { headers: { 'x-forwarded-for': '203.0.113.10' } });
+		for (let i = 0; i < LEITURA.limite; i++) expect((await GET(comIp())).status).toBe(400);
+		const resposta = await GET(comIp());
+		expect(resposta.status).toBe(429);
+		expect(resposta.headers.get('cache-control')).toBe('private, no-store');
+		expect((await resposta.json()).erro.codigo).toBe('muitas_requisicoes');
+	});
+});

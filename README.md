@@ -57,6 +57,7 @@ O método é o de tanque cheio a tanque cheio, separado por combustível:
 
 ## Roadmap
 
+- Aplicativo mobile (repositório separado) consumindo a API `/api/v1`.
 - Editar abastecimentos já registrados (hoje só é possível registrar e remover).
 
 ## Stack
@@ -107,6 +108,14 @@ Todas as rotas ficam em `/api/v1`. As rotas de garagem exigem `Authorization: Be
 
 Erros seguem o formato `{ "erro": { "codigo", "mensagem", "detalhes"? } }`.
 
+### Limite de requisições
+
+Cada IP pode fazer até **120 leituras por minuto** (`/locais`, `/precos`, `/catalogo`, `/calculo` e `GET /carros`) e **30 escritas por minuto** (`POST /carros`, `PATCH` e `DELETE /carros/{id}`). Acima disso a API responde `429` com o código `muitas_requisicoes` e o header `Retry-After` (em segundos). O job da ANP não tem limite, porque já exige o `CRON_SECRET`.
+
+A contagem fica na memória de cada instância do servidor. Na Vercel, cada instância serverless conta separadamente e zera quando é reciclada. Por isso o limite segura rajadas de um mesmo cliente, mas não garante uma cota global exata. Para um limite global, há duas opções sem mudar o contrato da API: as regras de rate limit do Firewall da Vercel (confira a disponibilidade no seu plano) ou trocar o armazenamento de `src/lib/api/limite.ts` por um compartilhado, como Redis ou uma tabela no Postgres.
+
+O IP do cliente vem de `x-real-ip` ou, na falta dele, do primeiro valor de `x-forwarded-for`. Isso pressupõe um proxy confiável na frente da aplicação (a Vercel, no deploy deste projeto) que sobrescreva esses headers com o IP real. Sem esse proxy, por exemplo com `next start` exposto direto, o próprio cliente define os headers e pode trocar de "IP" a cada requisição para escapar do limite.
+
 ## Como rodar
 
 Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dashboard).
@@ -133,8 +142,6 @@ Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dash
    curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/v1/jobs/precos-anp
    ```
 
-Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
-
 7. Importe o catálogo de carros da tabela PBEV do Inmetro (usa `SUPABASE_SECRET_KEY` do `.env.local`):
 
    ```bash
@@ -143,6 +150,8 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
    ```
 
    O script acha o PDF mais recente na página do PBE Veicular. Para outra edição, use `--url=<link do PDF>` ou `--arquivo=<caminho local>`. Só entram carros flex com consumo de cidade e estrada em etanol e gasolina; a versão inclui motor e transmissão. Rode de novo sempre que o Inmetro publicar uma tabela nova: as versões existentes são atualizadas e as de edições anteriores continuam no catálogo. Os valores de exemplo só são removidos depois que a importação grava tudo com sucesso. Se o número de linhas flex lidas for diferente do declarado no resumo do PDF, a importação é cancelada sem gravar nada (provável mudança de layout); confira com `--simular` e, se estiver certo, rode com `--forcar`.
+
+Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele só grava quando a ANP publica uma semana nova. Configure `CRON_SECRET` nas variáveis do projeto para a Vercel enviar o token.
 
 ### Scripts
 
@@ -157,11 +166,46 @@ Em produção na Vercel, o `vercel.json` agenda esse job uma vez por dia. Ele s�
 | `npm run importar:pbev`  | Importa o catálogo da tabela PBEV do Inmetro     |
 | `npm run importar:malha` | Importa a malha municipal do IBGE para o PostGIS |
 
+## Deploy na Vercel
+
+1. Importe o repositório na Vercel. O framework Next.js é detectado sozinho e o `vercel.json` já agenda o job da ANP.
+2. Em Settings → Environment Variables, cadastre para Production (e Preview, se for usar):
+
+   | Variável                               | Valor                                                                |
+   | -------------------------------------- | -------------------------------------------------------------------- |
+   | `NEXT_PUBLIC_SUPABASE_URL`             | URL do projeto no Supabase                                           |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Chave publishable                                                    |
+   | `SUPABASE_SECRET_KEY`                  | Chave secret (só no servidor; nunca use prefixo `NEXT_PUBLIC_`)      |
+   | `CRON_SECRET`                          | Valor aleatório longo, por exemplo a saída de `openssl rand -hex 32` |
+
+   As variáveis `NEXT_PUBLIC_*` entram no bundle e na política de segurança (CSP) durante o build. Se mudar alguma delas, faça um novo deploy.
+
+3. **Cron**: quando `CRON_SECRET` está configurada, a Vercel envia `Authorization: Bearer <CRON_SECRET>` ao chamar `/api/v1/jobs/precos-anp`, e a rota recusa qualquer outro token. O agendamento é diário (`0 12 * * *`, em UTC); no plano Hobby a Vercel só aceita crons diários. Para rodar na hora, use o botão Run em Settings → Cron Jobs ou o `curl` da seção anterior com a URL de produção.
+4. **Supabase → Authentication → URL Configuration**:
+   - **Site URL**: o domínio de produção, por exemplo `https://flexato.com.br`.
+   - **Redirect URLs**: adicione `https://<seu-dominio>/carros`. Para testar login em deploys de preview, adicione também o padrão das URLs de preview da Vercel, por exemplo `https://*-<sua-conta>.vercel.app/carros`.
+5. **Provedores de login** (Authentication → Providers):
+   - **Google**: crie um OAuth Client do tipo "Web application" no Google Cloud Console, com `https://<ref-do-projeto>.supabase.co/auth/v1/callback` em Authorized redirect URIs, e cole o Client ID e o Client Secret no Supabase.
+   - **Apple**: exige uma conta paga no Apple Developer Program. Crie um App ID e um Services ID com Sign in with Apple, cadastre o mesmo callback do Supabase como Return URL e gere a chave `.p8`. O secret derivado dessa chave expira e precisa ser renovado periodicamente; siga o guia de Apple no painel do Supabase. Sem a conta paga, o provedor fica desligado e o botão "Continuar com Apple" leva a uma página de erro do Supabase. Nesse caso, esconda o botão até configurar a Apple.
+   - **Link por e-mail**: funciona sem configuração extra, mas o SMTP padrão do Supabase tem limite baixo de envios. Em produção, configure um SMTP próprio em Authentication → Emails.
+
+### Headers de segurança
+
+O `next.config.ts` envia CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` e `Permissions-Policy` em todas as rotas. A CSP só permite conexões com o próprio site e com o projeto do Supabase. Se o front passar a chamar outro domínio, inclua esse domínio em `connect-src`.
+
+## CI
+
+O workflow `.github/workflows/ci.yml` roda em todo push e pull request, com Node 24: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run format:check` e `npm run build`. O build não precisa de segredos: sem as variáveis do Supabase o app compila e o login aparece como não configurado. Os testes das rotas usam mocks do Supabase e não acessam a rede.
+
+Para bloquear merges com o CI quebrado, ative em Settings → Branches uma regra de proteção na `main` exigindo o check "Lint, tipos, testes e build".
+
 ## Status
 
 Fatia 1 implementada: calculadora, preços da ANP por cidade/UF, garagem com login e API para o app.
 
 Fatia 2 implementada: importador da tabela PBEV do Inmetro (`npm run importar:pbev`), busca no catálogo sem acento e por relevância, e busca de carro com autocomplete na calculadora. A edição 2026 da PBEV traz 310 versões flex, das quais 299 entram no catálogo (as demais não têm consumo nos dois combustíveis ou são repetidas).
+
+Fatia 3 implementada: CI no GitHub Actions, testes das rotas com banco simulado, limite de requisições por IP, headers de segurança, ajustes de layout no celular e guia de deploy na Vercel.
 
 Fatia 4 implementada: localização automática. O navegador pede permissão, a posição, arredondada para 3 casas decimais (cerca de 110 m), vai só para `/api/v1/localizacao`, que encontra o município no PostGIS. A rota não grava a posição no banco, mas ela segue na query string e pode aparecer nos logs de acesso da hospedagem.
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { criarSupabaseFalso, type Resolvedor } from '@/lib/testes/supabase-falso';
 
@@ -38,7 +39,11 @@ function preparar(resolver: Resolvedor, usuarioId: string | null = 'usuario-1') 
 function requisicao(metodo: string, corpo?: unknown, token: string | null = 'token') {
 	return new Request(`http://localhost/api/v1/carros/${CARRO}/abastecimentos`, {
 		method: metodo,
-		headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(corpo !== undefined ? { 'content-type': 'application/json' } : {}) },
+		headers: {
+			'x-forwarded-for': randomUUID(),
+			...(token ? { authorization: `Bearer ${token}` } : {}),
+			...(corpo !== undefined ? { 'content-type': 'application/json' } : {}),
+		},
 		body: corpo === undefined ? undefined : JSON.stringify(corpo),
 	});
 }
@@ -272,5 +277,21 @@ describe('DELETE /api/v1/carros/{id}/abastecimentos/{abastecimentoId}', () => {
 		expect(resposta.status).toBe(500);
 		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
 		espiao.mockRestore();
+	});
+});
+
+describe('limite de requisições dos abastecimentos', () => {
+	it('retorna 429 antes de autenticar quando o IP passa do limite de escrita', async () => {
+		const { ESCRITA } = await import('@/lib/api/limite');
+		const comIp = () => {
+			const r = requisicao('POST', {}, null);
+			r.headers.set('x-forwarded-for', '203.0.113.9');
+			return r;
+		};
+		for (let i = 0; i < ESCRITA.limite; i++) expect((await POST(comIp(), ctx())).status).toBe(401);
+		const resposta = await POST(comIp(), ctx());
+		expect(resposta.status).toBe(429);
+		expect(Number(resposta.headers.get('Retry-After'))).toBeGreaterThan(0);
+		expect((await resposta.json()).erro.codigo).toBe('muitas_requisicoes');
 	});
 });

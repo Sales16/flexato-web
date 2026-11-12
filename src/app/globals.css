@@ -1225,11 +1225,38 @@
 		.mbar {
 			display: block;
 		}
-		.pagina-calculo {
-			padding-bottom: 90px;
+		body:has(.mbar) {
+			padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 		}
 		.toast {
 			bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+		}
+		.topbar .wrap {
+			padding-block: 8px;
+			row-gap: 4px;
+		}
+		.logo,
+		.nav a,
+		.nav button,
+		.btn,
+		.entrada,
+		.seg button,
+		.tabs button {
+			min-height: 44px;
+		}
+		.nav a,
+		.nav button {
+			display: inline-flex;
+			align-items: center;
+		}
+		.mix input[type='range'] {
+			height: 44px;
+		}
+		details.extras summary {
+			padding-block: 12px;
+		}
+		details.extras[open] summary {
+			margin-bottom: 0;
 		}
 	}
 	@media (max-width: 520px) {

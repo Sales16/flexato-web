@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { LEITURA, limitar } from '@/lib/api/limite';
 import { localizar } from '@/lib/dados/localizacao';
 import { erro, erroInterno } from '@/lib/api/respostas';
 import { dentroDoBrasil, lerCoordenadas } from '@/lib/localizacao/coordenadas';
@@ -10,6 +11,8 @@ function semCache(resposta: Response): Response {
 }
 
 export async function GET(request: NextRequest) {
+	const bloqueio = limitar(request, LEITURA);
+	if (bloqueio) return semCache(bloqueio);
 	const parametros = request.nextUrl.searchParams;
 	const coordenadas = lerCoordenadas(parametros.get('lat'), parametros.get('lng'));
 	if (!coordenadas) return semCache(erro(400, 'coordenadas_invalidas', 'Informe lat e lng em graus decimais, por exemplo lat=-23.55&lng=-46.63.'));

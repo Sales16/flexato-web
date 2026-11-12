@@ -1,10 +1,13 @@
 import { calcular, validarEntrada } from '@/lib/calculo';
 import { erro, erroValidacao, lerJson } from '@/lib/api/respostas';
+import { LEITURA, limitar } from '@/lib/api/limite';
 import { calculoSchema } from '@/lib/esquemas';
 
 const ouNaN = (v: number | null | undefined) => v ?? Number.NaN;
 
 export async function POST(request: Request) {
+	const bloqueio = limitar(request, LEITURA);
+	if (bloqueio) return bloqueio;
 	const entrada = calculoSchema.safeParse(await lerJson(request));
 	if (!entrada.success) return erroValidacao(entrada.error);
 	const { consumo, ...resto } = entrada.data;
