@@ -1,7 +1,14 @@
 import { parseArgs } from 'node:util';
 import { createClient } from '@supabase/supabase-js';
 import { buscar, emLotes, URL_MUNICIPIOS_IBGE } from '../src/lib/http-externo.ts';
-import { ehQualidadeMalha, montarMunicipios, urlMalhaMunicipal, type ColecaoMalha, type MunicipioLocalidade } from '../src/lib/localizacao/malha.ts';
+import {
+	conferirQuantidadeMunicipios,
+	ehQualidadeMalha,
+	montarMunicipios,
+	urlMalhaMunicipal,
+	type ColecaoMalha,
+	type MunicipioLocalidade,
+} from '../src/lib/localizacao/malha.ts';
 
 const TAMANHO_LOTE = 100;
 async function baixar(url: string): Promise<{ texto: string; bytes: number }> {
@@ -19,6 +26,7 @@ async function principal() {
 		options: {
 			qualidade: { type: 'string', default: 'intermediaria' },
 			simular: { type: 'boolean', default: false },
+			forcar: { type: 'boolean', default: false },
 		},
 	});
 	if (!ehQualidadeMalha(values.qualidade)) throw new Error('Use --qualidade=minima, intermediaria ou maxima.');
@@ -37,7 +45,7 @@ async function principal() {
 	if (semNome.length) console.warn(`Na malha, mas fora da lista de localidades (ignorados): ${semNome.join(', ')}`);
 	if (semGeometria.length) console.warn(`Na lista de localidades, mas sem geometria: ${semGeometria.join(', ')}`);
 	if (invalidos.length) console.warn(`Feições inválidas ignoradas: ${invalidos.join(', ')}`);
-	if (!municipios.length) throw new Error('Nenhum município para importar.');
+	conferirQuantidadeMunicipios(municipios.length, values.forcar);
 
 	if (values.simular) {
 		console.log('Simulação: nada foi gravado no banco.');
