@@ -138,6 +138,28 @@ describe('POST /api/v1/carros/{id}/abastecimentos', () => {
 		});
 	});
 
+	it('grava abastecimento parcial (sem tanque cheio)', async () => {
+		expect((await POST(requisicao('POST', { ...valido, tanqueCheio: false }), ctx())).status).toBe(201);
+		const insercao = estado.falso.consultas.find(c => c.tabela === 'abastecimentos')!.usou('insert');
+		expect(insercao?.args[0]).toMatchObject({ tanque_cheio: false });
+	});
+
+	it('exige token', async () => {
+		const resposta = await POST(requisicao('POST', valido, null), ctx());
+		expect(resposta.status).toBe(401);
+		expect((await resposta.json()).erro.codigo).toBe('nao_autenticado');
+		expect(estado.falso.consultas).toHaveLength(0);
+	});
+
+	it('retorna 500 quando o banco falha ao gravar', async () => {
+		const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
+		preparar(c => (c.tabela === 'carros' ? { data: { id: CARRO }, error: null } : { data: null, error: new Error('falha') }));
+		const resposta = await POST(requisicao('POST', valido), ctx());
+		expect(resposta.status).toBe(500);
+		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		espiao.mockRestore();
+	});
+
 	it('grava preço e trecho nulos quando não informados', async () => {
 		const semOpcionais = { ...valido, precoLitro: undefined, trecho: undefined };
 		expect((await POST(requisicao('POST', semOpcionais), ctx())).status).toBe(201);
@@ -221,5 +243,14 @@ describe('DELETE /api/v1/carros/{id}/abastecimentos/{abastecimentoId}', () => {
 	it('exige token', async () => {
 		preparar(() => ({ data: [], error: null }));
 		expect((await DELETE(requisicao('DELETE', undefined, null), ctxItem())).status).toBe(401);
+	});
+
+	it('retorna 500 quando o banco falha', async () => {
+		const espiao = vi.spyOn(console, 'error').mockImplementation(() => {});
+		preparar(() => ({ data: null, error: new Error('falha') }));
+		const resposta = await DELETE(requisicao('DELETE'), ctxItem());
+		expect(resposta.status).toBe(500);
+		expect((await resposta.json()).erro.codigo).toBe('erro_interno');
+		espiao.mockRestore();
 	});
 });
