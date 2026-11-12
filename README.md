@@ -114,6 +114,8 @@ Cada IP pode fazer até **120 leituras por minuto** (`/locais`, `/precos`, `/cat
 
 A contagem fica na memória de cada instância do servidor. Na Vercel, cada instância serverless conta separadamente e zera quando é reciclada. Por isso o limite segura rajadas de um mesmo cliente, mas não garante uma cota global exata. Para um limite global, há duas opções sem mudar o contrato da API: as regras de rate limit do Firewall da Vercel (confira a disponibilidade no seu plano) ou trocar o armazenamento de `src/lib/api/limite.ts` por um compartilhado, como Redis ou uma tabela no Postgres.
 
+O IP do cliente vem de `x-real-ip` ou, na falta dele, do primeiro valor de `x-forwarded-for`. Isso pressupõe um proxy confiável na frente da aplicação (a Vercel, no deploy deste projeto) que sobrescreva esses headers com o IP real. Sem esse proxy, por exemplo com `next start` exposto direto, o próprio cliente define os headers e pode trocar de "IP" a cada requisição para escapar do limite.
+
 ## Como rodar
 
 Pré-requisitos: Node.js 24 e um projeto no [Supabase](https://supabase.com/dashboard).
