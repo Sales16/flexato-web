@@ -1030,6 +1030,10 @@
 		color: var(--muted);
 		flex-wrap: wrap;
 	}
+	.faixa-aviso {
+		font-size: 11px;
+		color: var(--ink);
+	}
 
 	.grafico {
 		display: grid;
